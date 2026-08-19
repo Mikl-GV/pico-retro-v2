@@ -102,7 +102,9 @@ static void run_nes(void) {
 
 int main(void) {
     set_sys_clock_khz(250000, true);
+    stdio_init_all();
     display_init();
+    joypad_init();
 
     int cursor = 0;
     draw_menu(cursor);
