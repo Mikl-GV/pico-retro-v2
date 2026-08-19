@@ -10,7 +10,7 @@
  * Кнопка          | Пин на Pico | NES-бит | Клавиша игры
  * JOY_A_PIN       | GP22        | 0       | A
  * JOY_B_PIN       | GP27        | 1       | B
- * JOY_SELECT_PIN  | GP16        | 2       | Select
+ * JOY_SELECT_PIN  | GP15        | 2       | Select
  * JOY_START_PIN   | GP26        | 3       | Start
  * JOY_UP_PIN      | GP18        | 4       | Up
  * JOY_DOWN_PIN    | GP19        | 5       | Down
@@ -37,7 +37,8 @@ static const struct {
  * stable   — подтверждённое значение (0=нажата), используется для вывода
  * cnt      — счётчик одинаковых raw подряд
  *
- * Порог = 5 × 2 мс = 10 мс. Меньше 1 кадра (16.7 мс), больше импульса дребезга.
+ * Порог = 20 × 2 мс = 40 мс. Перекрывает дребезг дешёвых кнопок (5–20 мс)
+ * и не превышает 1 кадр (16.7 мс).
  */
 static uint8_t  db_raw[N_KEYS];
 static uint8_t  db_stable[N_KEYS];

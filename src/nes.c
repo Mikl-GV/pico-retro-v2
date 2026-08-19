@@ -210,8 +210,6 @@ void nes_init(nes_t *nes, const uint8_t *rom, uint32_t sz) {
 
     cpu6502_init(&nes->cpu, rd, wr);
     memset(nes->fb, 0, sizeof(nes->fb));
-    nes->joy1_buttons = 0xFF;
-    nes->joy1_latch = 0xFF;
 }
 
 void nes_set_joy(nes_t *nes, uint8_t btns) {
