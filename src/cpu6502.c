@@ -58,7 +58,9 @@ static void rra(cpu6502_t*c,uint16_t a){ror_m(c,a);adc(c,rd(c,a));}
 static void dcp(cpu6502_t*c,uint16_t a){uint8_t v=rd(c,a)-1;NZ(c,v);wr(c,a,v);cmp(c,c->a,v);}
 static void isb(cpu6502_t*c,uint16_t a){uint8_t v=rd(c,a)+1;NZ(c,v);wr(c,a,v);sbc(c,v);}
 
-static uint16_t am_idx(cpu6502_t*c){uint8_t z=rd(c,c->pc++);return rd(c,z)|((uint16_t)rd(c,(uint8_t)(z+1))<<8);}
+/* (indirect,X): zp = (operand + X) & 0xFF, addr = mem[zp] | mem[zp+1]<<8 */
+static uint16_t am_idx(cpu6502_t*c){uint8_t zp=(uint8_t)(rd(c,c->pc++)+c->x);return rd(c,zp)|((uint16_t)rd(c,(uint8_t)(zp+1))<<8);}
+/* (indirect),Y: addr = mem[zp] | mem[zp+1]<<8; Y прибавляется вызывающим кодом */
 static uint16_t am_idy(cpu6502_t*c){uint8_t z=rd(c,c->pc++);return rd(c,z)|((uint16_t)rd(c,(uint8_t)(z+1))<<8);}
 
 uint32_t cpu6502_step(cpu6502_t*c){
@@ -68,7 +70,7 @@ uint32_t cpu6502_step(cpu6502_t*c){
 
     switch(op){
     case 0x00: push(c,(uint8_t)((c->pc+1)>>8)); push(c,(uint8_t)(c->pc+1)); push(c,c->flags|FLAG_B); SF(c,FLAG_I); c->pc=r16(c,0xFFFE); break;
-    case 0x01: a=r16z(c,rd(c,c->pc++))+c->x;             c->a|=rd(c,a);                     NZ(c,c->a); break;
+    case 0x01: a=am_idx(c);                               c->a|=rd(c,a);                     NZ(c,c->a); break;
     case 0x03: a=am_idx(c);                               slo(c,a);                          break;
     case 0x04: rd(c,c->pc++); break;
     case 0x05: a=rd(c,c->pc++);                           c->a|=rd(c,a);                     NZ(c,c->a); break;
@@ -98,7 +100,7 @@ uint32_t cpu6502_step(cpu6502_t*c){
     case 0x1E: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; asl_m(c,a); break;
     case 0x1F: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; slo(c,a); break;
     case 0x20: a=r16(c,c->pc); c->pc+=2; push(c,(uint8_t)((c->pc-1)>>8)); push(c,(uint8_t)(c->pc-1)); c->pc=a; break;
-    case 0x21: a=r16z(c,rd(c,c->pc++))+c->x;             c->a&=rd(c,a); NZ(c,c->a); break;
+    case 0x21: a=am_idx(c);                               c->a&=rd(c,a); NZ(c,c->a); break;
     case 0x23: a=am_idx(c);                               rla(c,a);                          break;
     case 0x24: a=rd(c,c->pc++); v=rd(c,a); RF(c,FLAG_N|FLAG_V|FLAG_Z); if(v&0x80)SF(c,FLAG_N); if(v&0x40)SF(c,FLAG_V); if(!(v&c->a))SF(c,FLAG_Z); break;
     case 0x25: a=rd(c,c->pc++);                           c->a&=rd(c,a); NZ(c,c->a); break;
@@ -128,7 +130,7 @@ uint32_t cpu6502_step(cpu6502_t*c){
     case 0x3E: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; rol_m(c,a); break;
     case 0x3F: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; rla(c,a); break;
     case 0x40: c->flags=pop(c)|FLAG_B; c->pc=pop(c)|((uint16_t)pop(c)<<8); break;
-    case 0x41: a=r16z(c,rd(c,c->pc++))+c->x;             c->a^=rd(c,a); NZ(c,c->a); break;
+    case 0x41: a=am_idx(c);                               c->a^=rd(c,a); NZ(c,c->a); break;
     case 0x43: a=am_idx(c);                               sre(c,a);                          break;
     case 0x44: rd(c,c->pc++); break;
     case 0x45: a=rd(c,c->pc++);                           c->a^=rd(c,a); NZ(c,c->a); break;
@@ -158,7 +160,7 @@ uint32_t cpu6502_step(cpu6502_t*c){
     case 0x5E: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; lsr_m(c,a); break;
     case 0x5F: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; sre(c,a); break;
     case 0x60: c->pc=pop(c)|((uint16_t)pop(c)<<8); c->pc++; break;
-    case 0x61: a=r16z(c,rd(c,c->pc++))+c->x;             adc(c,rd(c,a));                     break;
+    case 0x61: a=am_idx(c);                               adc(c,rd(c,a));                     break;
     case 0x63: a=am_idx(c);                               rra(c,a);                          break;
     case 0x64: rd(c,c->pc++); break;
     case 0x65: a=rd(c,c->pc++);                           adc(c,rd(c,a));                     break;
@@ -188,7 +190,7 @@ uint32_t cpu6502_step(cpu6502_t*c){
     case 0x7E: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; ror_m(c,a); break;
     case 0x7F: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; rra(c,a); break;
     case 0x80: rd(c,c->pc++); break;
-    case 0x81: a=r16z(c,rd(c,c->pc++))+c->x;             wr(c,a,c->a);                       break;
+    case 0x81: a=am_idx(c);                               wr(c,a,c->a);                       break;
     case 0x82: rd(c,c->pc++); break;
     case 0x83: a=am_idx(c);                               wr(c,a,c->a&c->x);                 break;
     case 0x84: a=rd(c,c->pc++);                           wr(c,a,c->y);                       break;
@@ -219,7 +221,7 @@ uint32_t cpu6502_step(cpu6502_t*c){
     case 0x9E: a=r16(c,c->pc)+c->y; c->pc+=2; wr(c,a,c->x&((a>>8)+1)); break;
     case 0x9F: a=r16(c,c->pc)+c->y; c->pc+=2; wr(c,a,c->a&c->x&((a>>8)+1)); break;
     case 0xA0: c->y=rd(c,c->pc++); NZ(c,c->y); break;
-    case 0xA1: a=r16z(c,rd(c,c->pc++))+c->x;             c->a=rd(c,a); NZ(c,c->a); break;
+    case 0xA1: a=am_idx(c);                               c->a=rd(c,a); NZ(c,c->a); break;
     case 0xA2: c->x=rd(c,c->pc++); NZ(c,c->x); break;
     case 0xA3: a=am_idx(c);                               c->a=c->x=rd(c,a); NZ(c,c->a);     break;
     case 0xA4: a=rd(c,c->pc++);                           c->y=rd(c,a); NZ(c,c->y); break;
@@ -250,7 +252,7 @@ uint32_t cpu6502_step(cpu6502_t*c){
     case 0xBE: a=r16(c,c->pc)+c->y; c->pc+=2; cy+=((a^c->y)>>8)&1; c->x=rd(c,a); NZ(c,c->x); break;
     case 0xBF: a=r16(c,c->pc)+c->y; c->pc+=2; cy+=((a^c->y)>>8)&1; c->a=c->x=rd(c,a); NZ(c,c->a); break;
     case 0xC0: cmp(c,c->y,rd(c,c->pc++)); break;
-    case 0xC1: a=r16z(c,rd(c,c->pc++))+c->x;             cmp(c,c->a,rd(c,a)); break;
+    case 0xC1: a=am_idx(c);                               cmp(c,c->a,rd(c,a)); break;
     case 0xC2: rd(c,c->pc++); break;
     case 0xC3: a=am_idx(c);                               dcp(c,a);                          break;
     case 0xC4: a=rd(c,c->pc++);                           cmp(c,c->y,rd(c,a)); break;
@@ -281,7 +283,7 @@ uint32_t cpu6502_step(cpu6502_t*c){
     case 0xDE: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; v=rd(c,a)-1; NZ(c,v); wr(c,a,v); break;
     case 0xDF: a=r16(c,c->pc)+c->x; c->pc+=2; cy+=((a^c->x)>>8)&1; dcp(c,a); break;
     case 0xE0: cmp(c,c->x,rd(c,c->pc++)); break;
-    case 0xE1: a=r16z(c,rd(c,c->pc++))+c->x;             sbc(c,rd(c,a)); break;
+    case 0xE1: a=am_idx(c);                               sbc(c,rd(c,a)); break;
     case 0xE2: rd(c,c->pc++); break;
     case 0xE3: a=am_idx(c);                               isb(c,a);                          break;
     case 0xE4: a=rd(c,c->pc++);                           cmp(c,c->x,rd(c,a)); break;

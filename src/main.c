@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
@@ -14,6 +15,9 @@
 #define TITLE   RGB565(31, 0, 0)
 #define WHITE   RGB565(31, 63, 31)
 #define BAR     RGB565(31, 63, 31)
+#define RED     RGB565(31, 0, 0)
+#define GREEN   RGB565(0, 63, 0)
+#define BLUE    RGB565(0, 0, 31)
 
 typedef struct {
     const char     *name;
@@ -70,16 +74,19 @@ static void core1_main(void) {
     }
 }
 
-/*
- * NES framebuffer используется напрямую — nes_run_frame завершает рендер
- * строки до того, как display_stream_pixels её читает. Конфликта нет.
- */
 #define NES_START 0x08
+
+static void dump_regs(nes_t *n, int f) {
+    printf("F%04d CT=%02X MS=%02X ST=%02X V=%04X T=%04X xf=%d wl=%d PC=%04X A=%02X X=%02X Y=%02X SP=%02X FL=%02X cy=%lu\n",
+        f, n->ppu_ctrl, n->ppu_mask, n->ppu_status,
+        n->v, n->t, n->x_fine, (int)n->w_latch,
+        n->cpu.pc, n->cpu.a, n->cpu.x, n->cpu.y, n->cpu.sp, n->cpu.flags,
+        (unsigned long)n->cpu.cycles);
+}
 
 static void run_nes(void) {
     uint32_t frame = 0;
     uint32_t hold_exit = 0;
-    uint32_t next_fps = 0;
 
     while (true) {
         uint8_t pad = joypad_buttons();
@@ -94,25 +101,37 @@ static void run_nes(void) {
             display_stream_end();
         }
 
+        if (frame <= 3 || frame % 60 == 0)
+            dump_regs(&nes, frame);
+
         if (!(pad & NES_START)) hold_exit++; else hold_exit = 0;
         if (hold_exit > 60) break;
-
-        if (frame >= next_fps) {
-            static uint32_t tick;
-            uint32_t now = time_us_32();
-            printf("FPS %d  joy=%02X\n", (int)(1000000u / (now - tick)), pad);
-            tick = now;
-            next_fps = frame + 60;
-        }
     }
 }
 
 int main(void) {
     stdio_init_all();
+    sleep_ms(500);
+
+    printf("\n=== pico-retro boot ===\n");
+
     display_init();
+    printf("display_init done\n");
+
     joypad_init();
+    printf("joypad_init done\n");
+
+    printf("pad at boot: %02X\n", joypad_buttons());
+
+    display_fill(RED);   display_flush(); sleep_ms(500);
+    printf("RED done\n");
+    display_fill(GREEN); display_flush(); sleep_ms(500);
+    printf("GREEN done\n");
+    display_fill(BLUE);  display_flush(); sleep_ms(500);
+    printf("BLUE done\n");
 
     multicore_launch_core1(core1_main);
+    printf("core1 launched\n");
 
     int cursor = 0;
     draw_menu(cursor);
@@ -132,7 +151,11 @@ int main(void) {
         if (edge & 1) { cursor = (cursor + N_GAMES - 1) % N_GAMES; draw_menu(cursor); }
         if (edge & 2) { cursor = (cursor + 1) % N_GAMES; draw_menu(cursor); }
         if (edge & 4) {
+            printf("starting: %s mapper=%d prg=%ld idx\n", games[cursor].name, (long)nes.mapper, (unsigned long)cursor);
             nes_init(&nes, games[cursor].rom, games[cursor].size);
+            printf("nes_init done: mapper=%d prg_sz=%ld chr_sz=%ld PC=%04X mask=%02X ctrl=%02X\n",
+                (int)nes.mapper, (long)nes.prg_size, (long)nes.chr_size,
+                nes.cpu.pc, nes.ppu_mask, nes.ppu_ctrl);
             run_nes();
             draw_menu(cursor);
         }
