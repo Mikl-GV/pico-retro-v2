@@ -25,21 +25,15 @@ static uint8_t chr_read(nes_t *nes, uint16_t addr) {
     if (nes->mapper == 4 && nes->chr_rom) {
         uint8_t bank = addr >> 10;
         uint16_t off = addr & 0x3FF;
-        if (nes->mmc3_chr_mode == 0) {
-            /* mode 0: R0(2KB) @ $0000, R1(2KB) @ $0800, R2..R5(1KB) @ $1000..$1C00 */
-            if (bank == 0) return nes->chr_rom[((nes->mmc3_reg[0] & 0xFE) + 0) * 0x400 + off];
-            if (bank == 1) return nes->chr_rom[((nes->mmc3_reg[0] & 0xFE) + 1) * 0x400 + off];
-            if (bank == 2) return nes->chr_rom[((nes->mmc3_reg[1] & 0xFE) + 0) * 0x400 + off];
-            if (bank == 3) return nes->chr_rom[((nes->mmc3_reg[1] & 0xFE) + 1) * 0x400 + off];
-            return nes->chr_rom[(nes->mmc3_reg[bank] & 0xFE) * 0x400 + off];
-        } else {
-            /* mode 1: R2..R5(1KB) @ $0000..$0C00, R0(2KB) @ $1000, R1(2KB) @ $1800 */
-            if (bank < 4)  return nes->chr_rom[(nes->mmc3_reg[bank + 2] & 0xFE) * 0x400 + off];
-            if (bank == 4) return nes->chr_rom[((nes->mmc3_reg[0] & 0xFE) + 0) * 0x400 + off];
-            if (bank == 5) return nes->chr_rom[((nes->mmc3_reg[0] & 0xFE) + 1) * 0x400 + off];
-            if (bank == 6) return nes->chr_rom[((nes->mmc3_reg[1] & 0xFE) + 0) * 0x400 + off];
-            return nes->chr_rom[((nes->mmc3_reg[1] & 0xFE) + 1) * 0x400 + off];
-        }
+        /* MMC3 CHR: R0-R1 = 2KB, R2-R5 = 1KB */
+        static const uint8_t ix0[8] = {0,0,1,1,2,3,4,5};
+        static const uint8_t ix1[8] = {2,3,4,5,0,0,1,1};
+        const uint8_t *ix = nes->mmc3_chr_mode ? ix1 : ix0;
+        uint8_t r = ix[bank];
+        /* R0,R1 = 2KB (even-aligned), R2-R5 = 1KB */
+        uint8_t bank_base = (r < 2) ? (nes->mmc3_reg[r] & 0xFE) : nes->mmc3_reg[r];
+        uint8_t sub = (r < 2) ? (bank & 1) : 0;
+        return nes->chr_rom[(bank_base + sub) * 0x400 + off];
     }
     if (nes->chr_rom) return nes->chr_rom[addr];
     return nes->chr_ram[addr];
@@ -49,20 +43,13 @@ static void chr_write(nes_t *nes, uint16_t addr, uint8_t v) {
     if (nes->mapper == 4 && !nes->chr_rom) {
         uint8_t bank = addr >> 10;
         uint16_t off = addr & 0x3FF;
-        uint8_t *r = nes->chr_ram;
-        if (nes->mmc3_chr_mode == 0) {
-            if (bank == 0)      r[((nes->mmc3_reg[0] & 0xFE) + 0) * 0x400 + off] = v;
-            else if (bank == 1) r[((nes->mmc3_reg[0] & 0xFE) + 1) * 0x400 + off] = v;
-            else if (bank == 2) r[((nes->mmc3_reg[1] & 0xFE) + 0) * 0x400 + off] = v;
-            else if (bank == 3) r[((nes->mmc3_reg[1] & 0xFE) + 1) * 0x400 + off] = v;
-            else                r[(nes->mmc3_reg[bank] & 0xFE) * 0x400 + off] = v;
-        } else {
-            if (bank < 4)      r[(nes->mmc3_reg[bank + 2] & 0xFE) * 0x400 + off] = v;
-            else if (bank == 4) r[((nes->mmc3_reg[0] & 0xFE) + 0) * 0x400 + off] = v;
-            else if (bank == 5) r[((nes->mmc3_reg[0] & 0xFE) + 1) * 0x400 + off] = v;
-            else if (bank == 6) r[((nes->mmc3_reg[1] & 0xFE) + 0) * 0x400 + off] = v;
-            else                r[((nes->mmc3_reg[1] & 0xFE) + 1) * 0x400 + off] = v;
-        }
+        static const uint8_t ix0[8] = {0,0,1,1,2,3,4,5};
+        static const uint8_t ix1[8] = {2,3,4,5,0,0,1,1};
+        const uint8_t *ix = nes->mmc3_chr_mode ? ix1 : ix0;
+        uint8_t r = ix[bank];
+        uint8_t bank_base = (r < 2) ? (nes->mmc3_reg[r] & 0xFE) : nes->mmc3_reg[r];
+        uint8_t sub = (r < 2) ? (bank & 1) : 0;
+        nes->chr_ram[(bank_base + sub) * 0x400 + off] = v;
         return;
     }
     if (!nes->chr_rom) nes->chr_ram[addr] = v;
