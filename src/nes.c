@@ -67,7 +67,7 @@ static void wr(uint16_t a, uint8_t v) {
         return;
     }
     if (a == 0x4014) { uint16_t o = (uint16_t)v << 8; for (int i = 0; i < 256; i++) g->oam[i] = g->wram[o + i]; return; }
-    if (a == 0x4016) { g->joy1_strobe = v & 1; if (g->joy1_strobe) g->joy1_latch = (uint8_t)~g->joy1_buttons; }
+    if (a == 0x4016) { g->joy1_strobe = v & 1; if (g->joy1_strobe) g->joy1_latch = g->joy1_buttons; }
     if (a >= 0x8000 && g->mapper == 2) { g->prg_bank = v & 7; }
 }
 
@@ -106,7 +106,7 @@ void nes_init(nes_t *nes, const uint8_t *rom, uint32_t sz) {
     nes->chr_rom = (rom[5] == 0) ? NULL : rom + 16 + nes->prg_size;
 cpu6502_init(&nes->cpu, rd, wr);
     memset(nes->fb, 0, sizeof(nes->fb));
-    nes->joy1_buttons = 0x00;
+    nes->joy1_buttons = 0xFF;
     nes->joy1_latch = 0xFF;
     for (int f = 0; f < 4; f++) nes_run_frame(nes);
 }

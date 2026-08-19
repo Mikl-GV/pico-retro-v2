@@ -4,57 +4,52 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 
-#define BTN_UP     0x01
-#define BTN_DOWN   0x02
-#define BTN_LEFT   0x04
-#define BTN_RIGHT  0x08
-#define BTN_A      0x10
-#define BTN_START  0x20
-#define BTN_B      0x40
+#define N_KEYS 7
 
-static volatile uint8_t g_buttons;
-static volatile uint32_t g_poll_count;
+static const struct {
+    uint32_t pin;
+    uint8_t  nes_bit;
+} keys[N_KEYS] = {
+    { JOY_A_PIN,     0 }, // A     → NES bit 0
+    { JOY_B_PIN,     1 }, // B     → NES bit 1
+    { JOY_START_PIN, 3 }, // Start → NES bit 3
+    { JOY_UP_PIN,    4 }, // Up    → NES bit 4
+    { JOY_DOWN_PIN,  5 }, // Down  → NES bit 5
+    { JOY_LEFT_PIN,  6 }, // Left  → NES bit 6
+    { JOY_RIGHT_PIN, 7 }, // Right → NES bit 7
+};
+
+static uint32_t db_cnt[N_KEYS];
+static uint8_t  db_last[N_KEYS];
+
+static volatile uint8_t g_buttons = 0xFF; // NES-формат: 0=нажата
+
+#define DEBOUNCE_CYCLES 5
 
 void joypad_init(void) {
-    const uint32_t pins[] = {
-        JOY_UP_PIN, JOY_DOWN_PIN, JOY_LEFT_PIN, JOY_RIGHT_PIN,
-        JOY_A_PIN, JOY_START_PIN, JOY_B_PIN
-    };
-    for (uint32_t i = 0; i < sizeof(pins) / sizeof(pins[0]); i++) {
-        gpio_init(pins[i]);
-        gpio_set_dir(pins[i], GPIO_IN);
-        gpio_pull_up(pins[i]);
+    for (int i = 0; i < N_KEYS; i++) {
+        gpio_init(keys[i].pin);
+        gpio_set_dir(keys[i].pin, GPIO_IN);
+        gpio_pull_up(keys[i].pin);
+        db_cnt[i]  = 0;
+        db_last[i] = 1;
     }
-    g_buttons = 0;
-}
-
-joypad_state_t joypad_read(void) {
-    joypad_state_t s = {0};
-    s.up    = !gpio_get(JOY_UP_PIN);
-    s.down  = !gpio_get(JOY_DOWN_PIN);
-    s.left  = !gpio_get(JOY_LEFT_PIN);
-    s.right = !gpio_get(JOY_RIGHT_PIN);
-    s.a     = !gpio_get(JOY_A_PIN);
-    s.start = !gpio_get(JOY_START_PIN);
-    s.b     = !gpio_get(JOY_B_PIN);
-    return s;
 }
 
 void joypad_poll(void) {
-    uint8_t v = 0;
-    if (!gpio_get(JOY_UP_PIN))    v |= BTN_UP;
-    if (!gpio_get(JOY_DOWN_PIN))  v |= BTN_DOWN;
-    if (!gpio_get(JOY_LEFT_PIN))  v |= BTN_LEFT;
-    if (!gpio_get(JOY_RIGHT_PIN)) v |= BTN_RIGHT;
-    if (!gpio_get(JOY_A_PIN))     v |= BTN_A;
-    if (!gpio_get(JOY_START_PIN)) v |= BTN_START;
-    if (!gpio_get(JOY_B_PIN))     v |= BTN_B;
-    g_buttons = v;
-    g_poll_count++;
-}
-
-uint32_t joypad_poll_count(void) {
-    return g_poll_count;
+    uint8_t out = 0xFF;
+    for (int i = 0; i < N_KEYS; i++) {
+        uint8_t raw = gpio_get(keys[i].pin) ? 1 : 0;
+        if (raw == db_last[i]) {
+            if (db_cnt[i] < DEBOUNCE_CYCLES) db_cnt[i]++;
+        } else {
+            db_cnt[i]  = 0;
+            db_last[i] = raw;
+        }
+        uint8_t stable = (db_cnt[i] >= DEBOUNCE_CYCLES) ? raw : db_last[i];
+        if (!stable) out &= ~(1u << keys[i].nes_bit);
+    }
+    g_buttons = out;
 }
 
 uint8_t joypad_buttons(void) {
