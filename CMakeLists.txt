@@ -31,9 +31,16 @@ target_link_libraries(pico_retro PRIVATE
 )
 
 pico_enable_stdio_uart(pico_retro 1)
+target_compile_options(pico_retro PRIVATE
+    -O3
+    -funroll-loops
+    -finline-functions
+)
+
 target_compile_definitions(pico_retro PRIVATE
     PICO_DEFAULT_UART_TX_PIN=16
     PICO_DEFAULT_UART_RX_PIN=17
+    PICO_NO_HARDWARE_ASSERT=1
 )
 
 # pico-extras: композитное видео через pico_scanvideo (пока не используется)
