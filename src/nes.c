@@ -24,13 +24,22 @@ static uint16_t nt_mirror(uint16_t addr) {
 static uint8_t chr_read(nes_t *nes, uint16_t addr) {
     if (nes->mapper == 4 && nes->chr_rom) {
         uint8_t bank = addr >> 10;
-        uint8_t r;
-        if (nes->mmc3_chr_mode) {
-            r = (bank < 4) ? bank + 2 : (bank - 4) * 2;
+        uint16_t off = addr & 0x3FF;
+        if (nes->mmc3_chr_mode == 0) {
+            /* mode 0: R0(2KB) @ $0000, R1(2KB) @ $0800, R2..R5(1KB) @ $1000..$1C00 */
+            if (bank == 0) return nes->chr_rom[((nes->mmc3_reg[0] & 0xFE) + 0) * 0x400 + off];
+            if (bank == 1) return nes->chr_rom[((nes->mmc3_reg[0] & 0xFE) + 1) * 0x400 + off];
+            if (bank == 2) return nes->chr_rom[((nes->mmc3_reg[1] & 0xFE) + 0) * 0x400 + off];
+            if (bank == 3) return nes->chr_rom[((nes->mmc3_reg[1] & 0xFE) + 1) * 0x400 + off];
+            return nes->chr_rom[(nes->mmc3_reg[bank] & 0xFE) * 0x400 + off];
         } else {
-            r = (bank < 2) ? 0 : (bank < 4) ? 1 : (bank < 6) ? bank - 2 : bank - 3;
+            /* mode 1: R2..R5(1KB) @ $0000..$0C00, R0(2KB) @ $1000, R1(2KB) @ $1800 */
+            if (bank < 4)  return nes->chr_rom[(nes->mmc3_reg[bank + 2] & 0xFE) * 0x400 + off];
+            if (bank == 4) return nes->chr_rom[((nes->mmc3_reg[0] & 0xFE) + 0) * 0x400 + off];
+            if (bank == 5) return nes->chr_rom[((nes->mmc3_reg[0] & 0xFE) + 1) * 0x400 + off];
+            if (bank == 6) return nes->chr_rom[((nes->mmc3_reg[1] & 0xFE) + 0) * 0x400 + off];
+            return nes->chr_rom[((nes->mmc3_reg[1] & 0xFE) + 1) * 0x400 + off];
         }
-        return nes->chr_rom[(nes->mmc3_reg[r] * 0x400) + (addr & 0x3FF)];
     }
     if (nes->chr_rom) return nes->chr_rom[addr];
     return nes->chr_ram[addr];
@@ -39,13 +48,21 @@ static uint8_t chr_read(nes_t *nes, uint16_t addr) {
 static void chr_write(nes_t *nes, uint16_t addr, uint8_t v) {
     if (nes->mapper == 4 && !nes->chr_rom) {
         uint8_t bank = addr >> 10;
-        uint8_t r;
-        if (nes->mmc3_chr_mode) {
-            r = (bank < 4) ? bank + 2 : (bank - 4) * 2;
+        uint16_t off = addr & 0x3FF;
+        uint8_t *r = nes->chr_ram;
+        if (nes->mmc3_chr_mode == 0) {
+            if (bank == 0)      r[((nes->mmc3_reg[0] & 0xFE) + 0) * 0x400 + off] = v;
+            else if (bank == 1) r[((nes->mmc3_reg[0] & 0xFE) + 1) * 0x400 + off] = v;
+            else if (bank == 2) r[((nes->mmc3_reg[1] & 0xFE) + 0) * 0x400 + off] = v;
+            else if (bank == 3) r[((nes->mmc3_reg[1] & 0xFE) + 1) * 0x400 + off] = v;
+            else                r[(nes->mmc3_reg[bank] & 0xFE) * 0x400 + off] = v;
         } else {
-            r = (bank < 2) ? 0 : (bank < 4) ? 1 : (bank < 6) ? bank - 2 : bank - 3;
+            if (bank < 4)      r[(nes->mmc3_reg[bank + 2] & 0xFE) * 0x400 + off] = v;
+            else if (bank == 4) r[((nes->mmc3_reg[0] & 0xFE) + 0) * 0x400 + off] = v;
+            else if (bank == 5) r[((nes->mmc3_reg[0] & 0xFE) + 1) * 0x400 + off] = v;
+            else if (bank == 6) r[((nes->mmc3_reg[1] & 0xFE) + 0) * 0x400 + off] = v;
+            else                r[((nes->mmc3_reg[1] & 0xFE) + 1) * 0x400 + off] = v;
         }
-        nes->chr_ram[(nes->mmc3_reg[r] * 0x400) + (addr & 0x3FF)] = v;
         return;
     }
     if (!nes->chr_rom) nes->chr_ram[addr] = v;
@@ -203,7 +220,6 @@ void nes_init(nes_t *nes, const uint8_t *rom, uint32_t sz) {
     memset(nes->fb, 0, sizeof(nes->fb));
     nes->joy1_buttons = 0xFF;
     nes->joy1_latch = 0xFF;
-    for (int f = 0; f < 4; f++) nes_run_frame(nes);
 }
 
 void nes_set_joy(nes_t *nes, uint8_t btns) {

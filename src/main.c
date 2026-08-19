@@ -96,9 +96,26 @@ static void run_nes(void) {
         frame++;
 
         if (frame & 1) {
+            if (frame <= 10) {
+                /* тестовый паттерн для верификации дисплея */
+                for (int y = 0; y < 240; y++)
+                    for (int x = 0; x < 256; x++)
+                        nes.fb[y][x] = ((x ^ y) & 16) ? 0x30 : 0x0F;
+            }
             display_stream_begin(32, 0, 256, 240);
             display_stream_pixels(&nes.fb[0][0], ppu_lut, 256, 240);
             display_stream_end();
+        }
+
+        if (frame == 10) {
+            int nz = 0;
+            for (int y = 0; y < 240; y++)
+                for (int x = 0; x < 256; x++)
+                    if (nes.fb[y][x]) nz++;
+            printf("fb nz=%d/%d pal[0-3]=%02X%02X%02X%02X mask=%02X ctrl=%02X v=%04X t=%04X pc=%04X\n",
+                nz, 240*256,
+                nes.palette[0], nes.palette[1], nes.palette[2], nes.palette[3],
+                nes.ppu_mask, nes.ppu_ctrl, nes.v, nes.t, nes.cpu.pc);
         }
 
         if (frame <= 3 || frame % 60 == 0)
@@ -110,6 +127,7 @@ static void run_nes(void) {
 }
 
 int main(void) {
+    set_sys_clock_khz(253000, true);
     stdio_init_all();
     sleep_ms(500);
 

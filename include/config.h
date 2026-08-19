@@ -21,8 +21,8 @@
 #define LCD_HEIGHT      240
 #define LCD_MADCTL      0x28
 
-/* Делитель такта PIO для записи (такт байта ~2*clkdiv/sysclk = ~96 нс при 125 МГц) */
-#define LCD_PIO_CLKDIV  6.0f
+/* Делитель такта PIO: 12.0 при 253 МГц даёт ~95 нс на байт (как 6.0 при 125 МГц) */
+#define LCD_PIO_CLKDIV  12.0f
 
 /* ============ Кнопки (напрямую, активны LOW, с внутренней подтяжкой) ============ */
 #define JOY_UP_PIN      18
