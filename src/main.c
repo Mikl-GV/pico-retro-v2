@@ -43,8 +43,9 @@ static const game_entry_t games[] = {
 };
 #define N_GAMES (sizeof(games) / sizeof(games[0]))
 
-#define MENU_ABOUT  (N_GAMES)
-#define MENU_COUNT  (N_GAMES + 1)
+#define MENU_SETTINGS (N_GAMES)
+#define MENU_ABOUT    (N_GAMES + 1)
+#define MENU_COUNT    (N_GAMES + 2)
 
 static nes_t nes;
 static volatile bool core1_running = true;
@@ -56,7 +57,7 @@ static void draw_header(void) {
 
 static void draw_footer(void) {
     display_fill_rect(0, 232, LCD_WIDTH, 2, BAR);
-    display_text_center("UP/DN  START=ok  B=back", 29, 1, WHITE, BG);
+    display_text_center("UP/DN  START  B=back", 29, 1, WHITE, BG);
 }
 
 static void draw_menu(int cursor) {
@@ -64,13 +65,18 @@ static void draw_menu(int cursor) {
     draw_header();
     for (int i = 0; i < N_GAMES; i++) {
         uint16_t clr = (i == cursor) ? CURSOR : WHITE;
-        display_text(">", 1, 3 + i, 1, clr, BG);
-        display_text(games[i].name, 3, 3 + i, 1, clr, BG);
+        display_text(">", 0, 2 + i, 2, clr, BG);
+        display_text(games[i].name, 1, 2 + i, 2, clr, BG);
+    }
+    {
+        uint16_t clr = (cursor == MENU_SETTINGS) ? CURSOR : WHITE;
+        display_text(">", 0, 2 + N_GAMES, 2, clr, BG);
+        display_text("Settings", 1, 2 + N_GAMES, 2, clr, BG);
     }
     {
         uint16_t clr = (cursor == MENU_ABOUT) ? CURSOR : WHITE;
-        display_text(">", 1, 3 + N_GAMES, 1, clr, BG);
-        display_text("About", 3, 3 + N_GAMES, 1, clr, BG);
+        display_text(">", 0, 3 + N_GAMES, 2, clr, BG);
+        display_text("About", 1, 3 + N_GAMES, 2, clr, BG);
     }
     draw_footer();
     display_flush();
@@ -78,18 +84,43 @@ static void draw_menu(int cursor) {
 
 static void draw_about(void) {
     display_fill(BG);
-    display_text_center("p i c o - r e t r o", 0, 2, TITLE, BG);
-    display_fill_rect(0, 16, LCD_WIDTH, 2, BAR);
+    draw_header();
 
-    display_text("NES emulator for RP2040", 1, 4, 1, WHITE, BG);
-    display_text("CPU 6502 + PPU + MMC3", 1, 6, 1, WHITE, BG);
-    display_text("ILI9341V 8-bit 8080", 1, 8, 1, WHITE, BG);
-    display_text("8 buttons: A/B/Select/Start", 1, 10, 1, WHITE, BG);
-    display_text("UART: GP16/17 115200", 1, 12, 1, WHITE, BG);
-    display_text("github.com/Mikl-GV/pico-retro", 1, 14, 1, GREEN, BG);
+    display_text_center("About", 2, 2, CURSOR, BG);
 
-    display_fill_rect(0, 232, LCD_WIDTH, 2, BAR);
-    display_text_center("B=back", 29, 1, WHITE, BG);
+    char buf[40];
+    sprintf(buf, "Games: %d", N_GAMES);
+    display_text(buf, 0, 5, 1, WHITE, BG);
+
+    extern char __flash_binary_end;
+    uint32_t flash_used = (uint32_t)&__flash_binary_end - XIP_BASE;
+    uint32_t flash_free = 2 * 1024 * 1024 - flash_used;
+    sprintf(buf, "Flash: %luK / %luK free", flash_used / 1024, flash_free / 1024);
+    display_text(buf, 0, 7, 1, WHITE, BG);
+
+    extern char __bss_end__;
+    extern char __StackLimit;
+    uint32_t ram_used = &__bss_end__ - &__StackLimit;
+    uint32_t ram_total = 264 * 1024;
+    sprintf(buf, "RAM:   %luK / %luK free", ram_used / 1024, (ram_total - ram_used) / 1024);
+    display_text(buf, 0, 9, 1, WHITE, BG);
+
+    display_text("github.com/Mikl-GV/pico-retro", 0, 14, 1, GREEN, BG);
+
+    draw_footer();
+    display_flush();
+}
+
+static void draw_settings(void) {
+    display_fill(BG);
+    draw_header();
+
+    display_text_center("Settings", 2, 2, CURSOR, BG);
+    display_text("CPU: 250 MHz", 0, 5, 1, WHITE, BG);
+    display_text("Disp: ILI9341V 8080", 0, 7, 1, WHITE, BG);
+    display_text("UART: GP16/17 115200", 0, 9, 1, WHITE, BG);
+
+    draw_footer();
     display_flush();
 }
 
@@ -130,6 +161,14 @@ static void run_nes(void) {
     }
 }
 
+static void wait_b_release(void) {
+    while (true) {
+        uint8_t p = joypad_buttons();
+        if (p & 0x02) { sleep_ms(50); break; }
+        sleep_ms(20);
+    }
+}
+
 int main(void) {
     set_sys_clock_khz(250000, true);
     stdio_uart_init_full(uart0, 115200, 16, 17);
@@ -159,11 +198,11 @@ int main(void) {
         if (edge & 4) {
             if (cursor == MENU_ABOUT) {
                 draw_about();
-                while (true) {
-                    uint8_t p = joypad_buttons();
-                    if (!(p & 0x02)) { sleep_ms(200); break; }
-                    sleep_ms(20);
-                }
+                wait_b_release();
+                draw_menu(cursor);
+            } else if (cursor == MENU_SETTINGS) {
+                draw_settings();
+                wait_b_release();
                 draw_menu(cursor);
             } else {
                 nes_init(&nes, games[cursor].rom, games[cursor].size);
