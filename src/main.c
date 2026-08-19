@@ -86,23 +86,21 @@ static void draw_about(void) {
     display_fill(BG);
     draw_header();
 
-    display_text_center("About", 4, 2, CURSOR, BG);
+    display_text_center("About", 2, 2, CURSOR, BG);
 
     char buf[40];
     sprintf(buf, "Games: %d", N_GAMES);
     display_text(buf, 0, 7, 1, WHITE, BG);
 
     extern char __flash_binary_end;
-    uint32_t flash_used = (uint32_t)&__flash_binary_end - XIP_BASE;
-    uint32_t flash_free = 2 * 1024 * 1024 - flash_used;
-    sprintf(buf, "Flash: %luK / %luK free", flash_used / 1024, flash_free / 1024);
+    uint32_t flash = (uint32_t)&__flash_binary_end - 0x10000000;
+    sprintf(buf, "Flash: %luK / 2048K", flash / 1024);
     display_text(buf, 0, 9, 1, WHITE, BG);
 
-    extern char __bss_end__;
-    extern char __StackLimit;
-    uint32_t ram_used = &__bss_end__ - &__StackLimit;
-    uint32_t ram_total = 264 * 1024;
-    sprintf(buf, "RAM:   %luK / %luK free", ram_used / 1024, (ram_total - ram_used) / 1024);
+    extern uint8_t __bss_end__;
+    extern uint8_t __StackLimit;
+    uint32_t ram = (uint32_t)&__bss_end__ - (uint32_t)&__StackLimit;
+    sprintf(buf, "RAM:   %luK / 264K", ram / 1024);
     display_text(buf, 0, 11, 1, WHITE, BG);
 
     display_text("github.com/Mikl-GV/pico-retro", 0, 16, 1, GREEN, BG);
@@ -115,7 +113,7 @@ static void draw_settings(void) {
     display_fill(BG);
     draw_header();
 
-    display_text_center("Settings", 4, 2, CURSOR, BG);
+    display_text_center("Settings", 2, 2, CURSOR, BG);
     display_text("CPU: 250 MHz", 0, 7, 1, WHITE, BG);
     display_text("Disp: ILI9341V 8080", 0, 9, 1, WHITE, BG);
     display_text("UART: GP16/17 115200", 0, 11, 1, WHITE, BG);
