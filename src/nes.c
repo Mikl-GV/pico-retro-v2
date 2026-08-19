@@ -41,8 +41,10 @@ static uint8_t rd(uint16_t a) {
         }
         return 0;
     }
+    if (a == 0x4015) return 0x00; /* APU status: no IRQ/DMC, frame IRQ inhibited */
     if (a == 0x4016) { uint8_t j = g->joy1_latch & 1; if (!g->joy1_strobe) g->joy1_latch = (g->joy1_latch >> 1) | 0x80; g->rd4016_cnt++; return j | 0x40; }
     if (a == 0x4017) { uint8_t j = g->joy2_latch & 1; if (!g->joy1_strobe) g->joy2_latch = (g->joy2_latch >> 1) | 0x80; g->rd4017_cnt++; return j | 0x40; }
+    if (a >= 0x4000) return 0; /* APU registers */
     if (g->mapper == 2) {
         if (a >= 0xC000) return g->prg_rom[g->prg_size - 0x4000 + (a - 0xC000)];
         if (a >= 0x8000) return g->prg_rom[g->prg_bank * 0x4000 + (a - 0x8000)];
@@ -121,6 +123,8 @@ void nes_run_frame(nes_t *nes) {
     g->rd4016_cnt = 0;
     g->rd4017_cnt = 0;
 
+    int32_t dot_bank = 0;
+
     for (int scanline = 0; scanline < 262; scanline++) {
         if (scanline == 241) {
             g->ppu_status |= 0x80;
@@ -195,13 +199,14 @@ void nes_run_frame(nes_t *nes) {
             }
         }
 
-        /* 341 PPU dots / 3 = ~113.67 CPU cycles per scanline */
-        uint32_t budget = 113;
-        while (budget > 0) {
+        /* 341 PPU dots per scanline. CPU clock = PPU / 3.
+         * dot_bank накапливает дробную часть: 341 % 3 = 2 остатка
+         * каждые 3 строки дают лишний полный цикл CPU (2+2+2=6 → +2). */
+        dot_bank += 341;
+        while (dot_bank >= 3) {
             uint32_t cy = cpu6502_step(&g->cpu);
             if (cy == 0) cy = 2;
-            if (cy > budget) break;
-            budget -= cy;
+            dot_bank -= (int32_t)cy * 3;
         }
     }
 }
