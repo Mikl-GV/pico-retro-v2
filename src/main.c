@@ -78,6 +78,14 @@ static void core1_main(void) {
 
 #define NES_START 0x08
 
+static void dump_regs(nes_t *n, int f) {
+    printf("F%04d CT=%02X MS=%02X ST=%02X V=%04X T=%04X xf=%d wl=%d PC=%04X A=%02X X=%02X Y=%02X SP=%02X FL=%02X cy=%lu\n",
+        f, n->ppu_ctrl, n->ppu_mask, n->ppu_status,
+        n->v, n->t, n->x_fine, (int)n->w_latch,
+        n->cpu.pc, n->cpu.a, n->cpu.x, n->cpu.y, n->cpu.sp, n->cpu.flags,
+        (unsigned long)n->cpu.cycles);
+}
+
 static void run_nes(void) {
     uint32_t frame = 0;
     uint32_t hold_exit = 0;
@@ -95,6 +103,9 @@ static void run_nes(void) {
             display_stream_end();
         }
 
+        if (frame <= 3 || frame % 60 == 0)
+            dump_regs(&nes, frame);
+
         if (!(pad & NES_START)) hold_exit++; else hold_exit = 0;
         if (hold_exit > 60) break;
     }
@@ -103,8 +114,11 @@ static void run_nes(void) {
 int main(void) {
     set_sys_clock_khz(250000, true);
     stdio_init_all();
+    printf("\n=== pico-retro boot ===\n");
     display_init();
     joypad_init();
+    multicore_launch_core1(core1_main);
+    printf("core1 running\n");
 
     int cursor = 0;
     draw_menu(cursor);
