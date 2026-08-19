@@ -220,18 +220,6 @@ void nes_init(nes_t *nes, const uint8_t *rom, uint32_t sz) {
     memset(nes->fb, 0, sizeof(nes->fb));
     nes->joy1_buttons = 0xFF;
     nes->joy1_latch = 0xFF;
-
-    /* Прогрев: 2 кадра без VBlank — NMI не срабатывает до готовности игры */
-    for (int f = 0; f < 2; f++) {
-        for (int sl = 0; sl < 262; sl++) {
-            int32_t db = 341;
-            while (db >= 3) {
-                uint32_t cy = cpu6502_step(&nes->cpu);
-                if (cy == 0) cy = 2;
-                db -= (int32_t)cy * 3;
-            }
-        }
-    }
 }
 
 void nes_set_joy(nes_t *nes, uint8_t btns) {
