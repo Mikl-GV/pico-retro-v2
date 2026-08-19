@@ -219,6 +219,9 @@ void nes_run_frame(nes_t *nes) {
     g->rd4016_cnt = 0;
     g->rd4017_cnt = 0;
 
+    /* Latch joypad state at the start of the frame — stable for the whole frame */
+    g->joy1_latch = g->joy1_buttons;
+
     int32_t dot_bank = 0;
 
     for (int scanline = 0; scanline < 262; scanline++) {
@@ -317,7 +320,9 @@ dot_bank += 341;
         while (dot_bank >= 3) {
             uint32_t cy = cpu6502_step(&g->cpu);
             if (cy == 0) cy = 2;
-            dot_bank -= (int32_t)cy * 3;
+            int32_t sub = (int32_t)cy * 3;
+            if (sub > dot_bank) sub = dot_bank;
+            dot_bank -= sub;
         }
     }
 }

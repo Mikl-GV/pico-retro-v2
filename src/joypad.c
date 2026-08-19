@@ -43,7 +43,7 @@ static uint8_t  db_raw[N_KEYS];
 static uint8_t  db_stable[N_KEYS];
 static uint32_t db_cnt[N_KEYS];
 
-#define DB_THRESH 5
+#define DB_THRESH 20
 
 static volatile uint8_t g_buttons = 0xFF;
 
