@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "pico/stdlib.h"
-#include "pico/multicore.h"
 #include "hardware/uart.h"
 
 #include "display.h"
@@ -17,6 +16,9 @@
 #define WHITE   RGB565(31, 63, 31)
 #define BAR     RGB565(31, 63, 31)
 #define GREEN   RGB565(0, 63, 0)
+#define SPK_OUT  RGB565(20, 20, 20)
+#define SPK_INN  RGB565(12, 12, 12)
+#define SPK_HOLE RGB565(0, 0, 0)
 
 typedef struct {
     const char     *name;
@@ -30,6 +32,7 @@ typedef struct {
 #include "rom_ducktales.h"
 #include "rom_duck2.h"
 #include "rom_saiyuuki.h"
+#include "rom_mariobros.h"
 #include "rom_mario.h"
 
 static const game_entry_t games[] = {
@@ -39,6 +42,7 @@ static const game_entry_t games[] = {
     {"Duck Tales",     rom_ducktales,  ROM_DUCKTALES_SIZE},
     {"Duck Tales II",  rom_duck2,     rom_duck2_size},
     {"Saiyuuki World", rom_saiyuuki,   ROM_SAIYUUKI_SIZE},
+    {"Mario Bros.",    rom_mariobros,  rom_mariobros_size},
     {"SMB",            rom_mario,     rom_mario_size},
 };
 #define N_GAMES (sizeof(games) / sizeof(games[0]))
@@ -48,7 +52,6 @@ static const game_entry_t games[] = {
 #define MENU_COUNT    (N_GAMES + 2)
 
 static nes_t nes;
-static volatile bool core1_running = true;
 
 static void draw_header(void) {
     display_text_center("p i c o - r e t r o", 0, 2, TITLE, BG);
@@ -122,11 +125,35 @@ static void draw_settings(void) {
     display_flush();
 }
 
-static void core1_main(void) {
-    while (core1_running) {
-        joypad_poll();
-        sleep_us(2000);
+static void wait_b_press(void) {
+    while (true) {
+        uint8_t p = joypad_buttons();
+        if (!(p & 0x02)) { sleep_ms(100); break; }
+        sleep_ms(20);
     }
+}
+
+static void fill_oval(int cx, int cy, int hw, int hh, uint16_t color) {
+    int hw2 = hw * hw, hh2 = hh * hh;
+    for (int dy = -hh; dy <= hh; dy++) {
+        for (int dx = -hw; dx <= hw; dx++) {
+            if (dx * dx * hh2 + dy * dy * hw2 <= hw2 * hh2)
+                display_set_pixel(cx + dx, cy + dy, color);
+        }
+    }
+}
+
+static void draw_speakers(void) {
+    display_fill_rect(0, 0, 32, 240, SPK_OUT);
+    display_fill_rect(2, 2, 28, 236, SPK_INN);
+    display_fill_rect(288, 0, 32, 240, SPK_OUT);
+    display_fill_rect(290, 2, 28, 236, SPK_INN);
+    int ovals[] = {55, 120, 185};
+    for (int i = 0; i < 3; i++) {
+        fill_oval(16, ovals[i], 9, 28, SPK_HOLE);
+        fill_oval(304, ovals[i], 9, 28, SPK_HOLE);
+    }
+    display_flush();
 }
 
 #define NES_START 0x08
@@ -159,22 +186,13 @@ static void run_nes(void) {
     }
 }
 
-static void wait_b_press(void) {
-    while (true) {
-        uint8_t p = joypad_buttons();
-        if (!(p & 0x02)) { sleep_ms(100); break; }
-        sleep_ms(20);
-    }
-}
-
 int main(void) {
     set_sys_clock_khz(250000, true);
     stdio_uart_init_full(uart0, 115200, 16, 17);
     printf("\n=== pico-retro boot ===\n");
     display_init();
     joypad_init();
-    multicore_launch_core1(core1_main);
-    printf("core1 running\n");
+    printf("init done\n");
 
     int cursor = 0;
     draw_menu(cursor);
@@ -204,6 +222,7 @@ int main(void) {
                 draw_menu(cursor);
             } else {
                 nes_init(&nes, games[cursor].rom, games[cursor].size);
+                draw_speakers();
                 run_nes();
                 draw_menu(cursor);
             }

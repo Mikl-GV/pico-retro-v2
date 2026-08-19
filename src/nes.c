@@ -1,4 +1,5 @@
 #include "nes.h"
+#include "joypad.h"
 #include <string.h>
 
 static nes_t *g;
@@ -7,33 +8,27 @@ static uint16_t nt_mirror(uint16_t addr) {
     addr &= 0xFFF;
     uint8_t nt = addr >> 10;
     if (g->mapper == 4 && (g->mmc3_mirror & 1)) {
-        /* MMC3 controls mirroring via $A000 write */
-        if (g->mmc3_mirror & 1) {
-            return addr & 0x3FF;
-        }
+        return addr & 0x3FF;
     }
     if (g->mirror == 0) {
-        if (nt >= 2) addr = (addr & 0x3FF) | 0x400;
-    } else {
-        if (nt == 1 || nt == 3) addr = (addr & 0x3FF) | 0x400;
-        if (nt == 2 || nt == 3) addr = (addr & 0x3FF) | 0x800;
+        return (addr & 0x3FF) | ((nt & 1) * 0x400);
     }
-    return addr & 0x7FF;
+    return (addr & 0x3FF) | ((nt >> 1) * 0x400);
 }
 
 static uint8_t chr_read(nes_t *nes, uint16_t addr) {
-    if (nes->mapper == 4 && nes->chr_rom) {
+    if (nes->mapper == 4) {
         uint8_t bank = addr >> 10;
         uint16_t off = addr & 0x3FF;
-        /* MMC3 CHR: R0-R1 = 2KB, R2-R5 = 1KB */
         static const uint8_t ix0[8] = {0,0,1,1,2,3,4,5};
         static const uint8_t ix1[8] = {2,3,4,5,0,0,1,1};
         const uint8_t *ix = nes->mmc3_chr_mode ? ix1 : ix0;
         uint8_t r = ix[bank];
-        /* R0,R1 = 2KB (even-aligned), R2-R5 = 1KB */
         uint8_t bank_base = (r < 2) ? (nes->mmc3_reg[r] & 0xFE) : nes->mmc3_reg[r];
         uint8_t sub = (r < 2) ? (bank & 1) : 0;
-        return nes->chr_rom[(bank_base + sub) * 0x400 + off];
+        uint16_t chr_addr = (uint16_t)(bank_base + sub) * 0x400 + off;
+        if (nes->chr_rom) return nes->chr_rom[chr_addr];
+        return nes->chr_ram[chr_addr];
     }
     if (nes->chr_rom) return nes->chr_rom[addr];
     return nes->chr_ram[addr];
@@ -124,8 +119,8 @@ static void wr(uint16_t a, uint8_t v) {
         }
         return;
     }
-    if (a == 0x4014) { uint16_t o = (uint16_t)v << 8; for (int i = 0; i < 256; i++) g->oam[i] = g->wram[o + i]; return; }
-    if (a == 0x4016) { g->joy1_strobe = v & 1; if (g->joy1_strobe) { g->joy1_latch = g->joy1_buttons; g->joy2_latch = g->joy2_buttons; } }
+    if (a == 0x4014) { uint16_t o = (uint16_t)v << 8; for (int i = 0; i < 256; i++) g->oam[i] = g->wram[(o + i) & 0x7FF]; return; }
+    if (a == 0x4016) { g->joy1_strobe = v & 1; if (g->joy1_strobe) { g->joy1_latch = joypad_snapshot(); g->joy2_latch = g->joy2_buttons; } }
     if (a >= 0x6000 && a < 0x8000) {
         if (g->mapper == 4) {
             if (!g->mmc3_ram_protect) g->mmc3_prg_ram[a - 0x6000] = v;
@@ -227,13 +222,12 @@ void nes_run_frame(nes_t *nes) {
     for (int scanline = 0; scanline < 262; scanline++) {
         if (scanline == 241) {
             g->ppu_status |= 0x80;
-            /* transfer t→v at start of VBlank (like real PPU) */
+            if (g->ppu_ctrl & 0x80) {
+                g->cpu.nmi_pending = true;
+            }
             if (g->ppu_mask & 0x18) {
                 g->v = g->t;
             }
-        }
-        if (scanline == 242 && (g->ppu_ctrl & 0x80)) {
-            g->cpu.nmi_pending = true;
         }
 
         /* NMI, IRQ — отложенные, обрабатываются между инструкциями CPU */
