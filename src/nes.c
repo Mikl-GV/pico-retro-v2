@@ -300,8 +300,9 @@ void nes_run_frame(nes_t *nes) {
                 uint8_t attr = g->oam[i*4 + 2];
                 uint8_t tile_idx = g->oam[i*4 + 1];
                 int pal = 0x10 + ((attr & 3) << 2);
+                bool behind_bg = attr & 0x20;
                 bool flip_h = attr & 0x40;
-                bool flip_v = attr & 0x20;
+                bool flip_v = attr & 0x80;
                 uint8_t spr_y = scanline - oy;
                 if (flip_v) spr_y = (spr_h - 1) - spr_y;
                 uint16_t taddr = (uint16_t)((g->ppu_ctrl & 0x08) ? 0x1000 : 0) + tile_idx * 16 + spr_y;
@@ -312,7 +313,7 @@ void nes_run_frame(nes_t *nes) {
                     if (sx < 0 || sx >= 256) continue;
                     int ci = ((hi & 0x80) ? 2 : 0) | ((lo & 0x80) ? 1 : 0);
                     hi <<= 1; lo <<= 1;
-                    if (ci && g->fb[scanline][sx] == g->palette[0])
+                    if (ci && (behind_bg ? (g->fb[scanline][sx] == g->palette[0]) : 1))
                         g->fb[scanline][sx] = g->palette[pal + ci];
                 }
             }
