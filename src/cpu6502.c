@@ -316,5 +316,30 @@ uint32_t cpu6502_step(cpu6502_t*c){
     }
 
     c->cycles+=cy;
+
+    /* NMI/IRQ проверяются ПОСЛЕ завершения инструкции */
+    if (c->nmi_pending) {
+        c->nmi_pending = false;
+        c->write(0x100|c->sp,(uint8_t)(c->pc>>8)); c->sp--;
+        c->write(0x100|c->sp,(uint8_t)c->pc); c->sp--;
+        c->write(0x100|c->sp,c->flags&~FLAG_B); c->sp--;
+        c->flags |= FLAG_I;
+        uint8_t lo=c->read(0xFFFA), hi=c->read(0xFFFB);
+        c->pc=lo|((uint16_t)hi<<8);
+        c->cycles+=7;
+        return cy+7;
+    }
+    if (c->irq_pending && !(c->flags & FLAG_I)) {
+        c->irq_pending = false;
+        c->write(0x100|c->sp,(uint8_t)(c->pc>>8)); c->sp--;
+        c->write(0x100|c->sp,(uint8_t)c->pc); c->sp--;
+        c->write(0x100|c->sp,c->flags&~FLAG_B); c->sp--;
+        c->flags |= FLAG_I;
+        uint8_t lo=c->read(0xFFFE), hi=c->read(0xFFFF);
+        c->pc=lo|((uint16_t)hi<<8);
+        c->cycles+=7;
+        return cy+7;
+    }
+
     return cy;
 }

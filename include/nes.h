@@ -55,6 +55,8 @@ typedef struct {
     uint32_t rd4016_cnt;
     uint32_t rd4017_cnt;
 
+    bool nmi_pending;
+
     cpu6502_t cpu;
 } nes_t;
 

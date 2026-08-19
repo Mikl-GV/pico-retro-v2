@@ -9,6 +9,8 @@ typedef struct {
     uint16_t pc;
     uint32_t cycles;
     bool irq_pending;
+    bool nmi_pending;
+    bool (*nmi_check)(void);
     uint8_t (*read)(uint16_t addr);
     void (*write)(uint16_t addr, uint8_t val);
 } cpu6502_t;
