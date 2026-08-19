@@ -81,5 +81,7 @@ void joypad_poll(void) {
 }
 
 uint8_t joypad_buttons(void) {
-    return g_buttons;
+    uint8_t v = g_buttons;
+    __asm volatile("dmb sy" ::: "memory");
+    return v;
 }

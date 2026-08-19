@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
@@ -7,11 +8,6 @@
 #include "joypad.h"
 #include "config.h"
 #include "nes.h"
-#include "rom_bomberman.h"
-#include "rom_balloon.h"
-#include "rom_battlecity.h"
-#include "rom_ducktales.h"
-#include "rom_saiyuuki.h"
 
 #define BG      0x0000
 #define CURSOR  RGB565(31, 31, 0)
@@ -19,11 +15,31 @@
 #define WHITE   RGB565(31, 63, 31)
 #define BAR     RGB565(31, 63, 31)
 
-static const char *items[] = {
-    "Balloon Fight", "Battle City", "Bomberman",
-    "Duck Tales", "Saiyuuki World", "About",
+typedef struct {
+    const char     *name;
+    const uint8_t  *rom;
+    uint32_t        size;
+} game_entry_t;
+
+#include "rom_balloon.h"
+#include "rom_battlecity.h"
+#include "rom_bomberman.h"
+#include "rom_ducktales.h"
+#include "rom_saiyuuki.h"
+#include "rom_mario.h"
+
+static const game_entry_t games[] = {
+    {"SMB",            rom_mario,     rom_mario_size},
+    {"Balloon Fight",  rom_balloon,  ROM_BALLOON_SIZE},
+    {"Battle City",    rom_battlecity, ROM_BATTLECITY_SIZE},
+    {"Bomberman",      rom_bomberman,  ROM_BOMBERMAN_SIZE},
+    {"Duck Tales",     rom_ducktales,  ROM_DUCKTALES_SIZE},
+    {"Saiyuuki World", rom_saiyuuki,   ROM_SAIYUUKI_SIZE},
 };
-#define N_ITEMS (sizeof(items) / sizeof(items[0]))
+#define N_GAMES (sizeof(games) / sizeof(games[0]))
+
+static nes_t nes;
+static volatile bool core1_running = true;
 
 static void draw_header(void) {
     display_text_center("p i c o - r e t r o", 0, 1, TITLE, BG);
@@ -38,19 +54,15 @@ static void draw_footer(void) {
 static void draw_menu(int cursor) {
     display_fill(BG);
     draw_header();
-    for (int i = 0; i < N_ITEMS; i++) {
+    for (int i = 0; i < N_GAMES; i++) {
         uint16_t clr = (i == cursor) ? CURSOR : WHITE;
         display_text(">", 1, 2 + i * 2, 1, clr, BG);
-        display_text(items[i], 3, 2 + i * 2, 1, clr, BG);
+        display_text(games[i].name, 3, 2 + i * 2, 1, clr, BG);
     }
     draw_footer();
     display_flush();
 }
 
-static nes_t nes;
-static volatile bool core1_running = true;
-
-/* Ядро 1: опрос кнопок с антидребезгом, без перерывов на дисплей */
 static void core1_main(void) {
     while (core1_running) {
         joypad_poll();
@@ -58,16 +70,16 @@ static void core1_main(void) {
     }
 }
 
-/* NES-биты (0=нажата): 0=A, 1=B, 3=Start, 4=Up, 5=Down, 6=Left, 7=Right */
-#define NES_A     0x01
-#define NES_B     0x02
+/*
+ * NES framebuffer используется напрямую — nes_run_frame завершает рендер
+ * строки до того, как display_stream_pixels её читает. Конфликта нет.
+ */
 #define NES_START 0x08
-#define NES_UP    0x10
-#define NES_DOWN  0x20
 
 static void run_nes(void) {
     uint32_t frame = 0;
     uint32_t hold_exit = 0;
+    uint32_t next_fps = 0;
 
     while (true) {
         uint8_t pad = joypad_buttons();
@@ -84,10 +96,19 @@ static void run_nes(void) {
 
         if (!(pad & NES_START)) hold_exit++; else hold_exit = 0;
         if (hold_exit > 60) break;
+
+        if (frame >= next_fps) {
+            static uint32_t tick;
+            uint32_t now = time_us_32();
+            printf("FPS %d  joy=%02X\n", (int)(1000000u / (now - tick)), pad);
+            tick = now;
+            next_fps = frame + 60;
+        }
     }
 }
 
 int main(void) {
+    stdio_init_all();
     display_init();
     joypad_init();
 
@@ -98,27 +119,20 @@ int main(void) {
 
     uint32_t prev_down = 0;
 
-    while (true) {
+    for (;;) {
         uint8_t pad = joypad_buttons();
-        uint8_t down = ~pad; /* 1 = нажата */
+        uint8_t down = ~pad;
 
-        /* меню: bit0=Up, bit1=Down, bit2=Start, bit3=B */
-        uint32_t mask = (((uint32_t)down >> 4) & 1)      /* Up    */
-                      | (((uint32_t)(down >> 5) & 1) << 1) /* Down  */
-                      | (((uint32_t)(down >> 3) & 1) << 2) /* Start */
-                      | (((uint32_t)(down >> 1) & 1) << 3); /* B     */
+        uint32_t mask = (((uint32_t)down >> 4) & 1)
+                      | (((uint32_t)(down >> 5) & 1) << 1)
+                      | (((uint32_t)(down >> 3) & 1) << 2)
+                      | (((uint32_t)(down >> 1) & 1) << 3);
         uint32_t edge = mask & ~prev_down;
 
-        if (edge & 1) { cursor = (cursor + N_ITEMS - 1) % N_ITEMS; draw_menu(cursor); }
-        if (edge & 2) { cursor = (cursor + 1) % N_ITEMS; draw_menu(cursor); }
-        if (edge & 4) { /* Start — запуск */
-            switch (cursor) {
-            case 0: nes_init(&nes, rom_balloon, ROM_BALLOON_SIZE); break;
-            case 1: nes_init(&nes, rom_battlecity, ROM_BATTLECITY_SIZE); break;
-            case 2: nes_init(&nes, rom_bomberman, ROM_BOMBERMAN_SIZE); break;
-            case 3: nes_init(&nes, rom_ducktales, ROM_DUCKTALES_SIZE); break;
-            case 4: nes_init(&nes, rom_saiyuuki, ROM_SAIYUUKI_SIZE); break;
-            }
+        if (edge & 1) { cursor = (cursor + N_GAMES - 1) % N_GAMES; draw_menu(cursor); }
+        if (edge & 2) { cursor = (cursor + 1) % N_GAMES; draw_menu(cursor); }
+        if (edge & 4) {
+            nes_init(&nes, games[cursor].rom, games[cursor].size);
             run_nes();
             draw_menu(cursor);
         }

@@ -6,6 +6,12 @@ static nes_t *g;
 static uint16_t nt_mirror(uint16_t addr) {
     addr &= 0xFFF;
     uint8_t nt = addr >> 10;
+    if (g->mapper == 4 && (g->mmc3_mirror & 1)) {
+        /* MMC3 controls mirroring via $A000 write */
+        if (g->mmc3_mirror & 1) {
+            return addr & 0x3FF;
+        }
+    }
     if (g->mirror == 0) {
         if (nt >= 2) addr = (addr & 0x3FF) | 0x400;
     } else {
@@ -16,11 +22,32 @@ static uint16_t nt_mirror(uint16_t addr) {
 }
 
 static uint8_t chr_read(nes_t *nes, uint16_t addr) {
+    if (nes->mapper == 4 && nes->chr_rom) {
+        uint8_t bank = addr >> 10;
+        uint8_t r;
+        if (nes->mmc3_chr_mode) {
+            r = (bank < 4) ? bank + 2 : (bank - 4) * 2;
+        } else {
+            r = (bank < 2) ? 0 : (bank < 4) ? 1 : (bank < 6) ? bank - 2 : bank - 3;
+        }
+        return nes->chr_rom[(nes->mmc3_reg[r] * 0x400) + (addr & 0x3FF)];
+    }
     if (nes->chr_rom) return nes->chr_rom[addr];
     return nes->chr_ram[addr];
 }
 
 static void chr_write(nes_t *nes, uint16_t addr, uint8_t v) {
+    if (nes->mapper == 4 && !nes->chr_rom) {
+        uint8_t bank = addr >> 10;
+        uint8_t r;
+        if (nes->mmc3_chr_mode) {
+            r = (bank < 4) ? bank + 2 : (bank - 4) * 2;
+        } else {
+            r = (bank < 2) ? 0 : (bank < 4) ? 1 : (bank < 6) ? bank - 2 : bank - 3;
+        }
+        nes->chr_ram[(nes->mmc3_reg[r] * 0x400) + (addr & 0x3FF)] = v;
+        return;
+    }
     if (!nes->chr_rom) nes->chr_ram[addr] = v;
 }
 
@@ -41,10 +68,35 @@ static uint8_t rd(uint16_t a) {
         }
         return 0;
     }
-    if (a == 0x4015) return 0x00; /* APU status: no IRQ/DMC, frame IRQ inhibited */
+    if (a == 0x4015) return 0x00;
     if (a == 0x4016) { uint8_t j = g->joy1_latch & 1; if (!g->joy1_strobe) g->joy1_latch = (g->joy1_latch >> 1) | 0x80; g->rd4016_cnt++; return j | 0x40; }
     if (a == 0x4017) { uint8_t j = g->joy2_latch & 1; if (!g->joy1_strobe) g->joy2_latch = (g->joy2_latch >> 1) | 0x80; g->rd4017_cnt++; return j | 0x40; }
-    if (a >= 0x4000) return 0; /* APU registers */
+    if (a >= 0x4000 && a < 0x6000) return 0;
+    if (a >= 0x6000 && a < 0x8000) {
+        if (g->mapper == 4) return g->mmc3_prg_ram[a - 0x6000];
+        return 0;
+    }
+    if (g->mapper == 4) {
+        uint8_t b6 = g->mmc3_reg[6] & 0x3F;
+        uint8_t b7 = g->mmc3_reg[7] & 0x3F;
+        uint8_t last = (uint8_t)((g->prg_size / 0x2000) - 2);
+        uint8_t last_b = (uint8_t)((g->prg_size / 0x2000) - 1);
+        if (a >= 0xE000) {
+            return g->prg_rom[last_b * 0x2000 + (a - 0xE000)];
+        }
+        if (a >= 0xC000) {
+            uint8_t bank = g->mmc3_prg_mode ? b6 : last;
+            return g->prg_rom[bank * 0x2000 + (a - 0xC000)];
+        }
+        if (a >= 0xA000) {
+            return g->prg_rom[b7 * 0x2000 + (a - 0xA000)];
+        }
+        if (a >= 0x8000) {
+            uint8_t bank = g->mmc3_prg_mode ? last_b : b6;
+            return g->prg_rom[bank * 0x2000 + (a - 0x8000)];
+        }
+        return 0;
+    }
     if (g->mapper == 2) {
         if (a >= 0xC000) return g->prg_rom[g->prg_size - 0x4000 + (a - 0xC000)];
         if (a >= 0x8000) return g->prg_rom[g->prg_bank * 0x4000 + (a - 0x8000)];
@@ -70,6 +122,41 @@ static void wr(uint16_t a, uint8_t v) {
     }
     if (a == 0x4014) { uint16_t o = (uint16_t)v << 8; for (int i = 0; i < 256; i++) g->oam[i] = g->wram[o + i]; return; }
     if (a == 0x4016) { g->joy1_strobe = v & 1; if (g->joy1_strobe) g->joy1_latch = g->joy1_buttons; }
+    if (a >= 0x6000 && a < 0x8000) {
+        if (g->mapper == 4) {
+            if (!g->mmc3_ram_protect) g->mmc3_prg_ram[a - 0x6000] = v;
+        }
+        return;
+    }
+    if (g->mapper == 4) {
+        /* MMC3: $8000-$9FFF even = bank select, odd = bank data */
+        if (a < 0xA000) {
+            if (!(a & 1)) {
+                g->mmc3_bank_select = v & 7;
+                g->mmc3_prg_mode = (v >> 6) & 1;
+                g->mmc3_chr_mode = (v >> 7) & 1;
+            } else {
+                g->mmc3_reg[g->mmc3_bank_select] = v;
+            }
+            return;
+        }
+        /* $A000-$BFFF: mirroring / PRG-RAM protect */
+        if (a < 0xC000) {
+            if (!(a & 1)) g->mmc3_mirror = v & 1;
+            else g->mmc3_ram_protect = (v & 0xC0) ? 1 : 0;
+            return;
+        }
+        /* $C000-$DFFF: IRQ latch / reload */
+        if (a < 0xE000) {
+            if (!(a & 1)) g->mmc3_irq_latch = v;
+            else g->mmc3_irq_counter = 0;
+            return;
+        }
+        /* $E000-$FFFF: IRQ enable / disable */
+        if (!(a & 1)) { g->mmc3_irq_enable = false; }
+        else { g->mmc3_irq_enable = true; }
+        return;
+    }
     if (a >= 0x8000 && g->mapper == 2) { g->prg_bank = v & 7; }
 }
 
@@ -87,7 +174,6 @@ void nes_init(nes_t *nes, const uint8_t *rom, uint32_t sz) {
     memset(nes, 0, sizeof(*nes));
     g = nes;
 
-    /* NES master palette -> RGB565 */
     static const uint8_t pal[64][3] = {
         {84,84,84},{0,30,116},{8,16,144},{48,0,136},{68,0,100},{92,0,48},{84,4,0},{60,24,0},
         {32,42,0},{8,58,0},{0,64,0},{0,60,0},{0,50,60},{0,0,0},{0,0,0},{0,0,0},
@@ -106,7 +192,14 @@ void nes_init(nes_t *nes, const uint8_t *rom, uint32_t sz) {
     nes->mirror = rom[6] & 1;
     nes->prg_rom = rom + 16;
     nes->chr_rom = (rom[5] == 0) ? NULL : rom + 16 + nes->prg_size;
-cpu6502_init(&nes->cpu, rd, wr);
+
+    if (nes->mapper == 4) {
+        nes->mmc3_reg[6] = 0;
+        nes->mmc3_reg[7] = 1;
+        nes->mmc3_mirror = nes->mirror;
+    }
+
+    cpu6502_init(&nes->cpu, rd, wr);
     memset(nes->fb, 0, sizeof(nes->fb));
     nes->joy1_buttons = 0xFF;
     nes->joy1_latch = 0xFF;
@@ -129,6 +222,17 @@ void nes_run_frame(nes_t *nes) {
         if (scanline == 241) {
             g->ppu_status |= 0x80;
             if (g->ppu_ctrl & 0x80) cpu6502_nmi(&g->cpu);
+        }
+
+        if (g->mapper == 4 && g->mmc3_irq_enable && scanline < 240) {
+            if (g->mmc3_irq_counter == 0) {
+                g->mmc3_irq_counter = g->mmc3_irq_latch;
+            } else {
+                g->mmc3_irq_counter--;
+                if (g->mmc3_irq_counter == 0) {
+                    g->cpu.irq_pending = true;
+                }
+            }
         }
 
         if (scanline < 240 && (g->ppu_mask & 0x08)) {
@@ -199,14 +303,23 @@ void nes_run_frame(nes_t *nes) {
             }
         }
 
-        /* 341 PPU dots per scanline. CPU clock = PPU / 3.
-         * dot_bank накапливает дробную часть: 341 % 3 = 2 остатка
-         * каждые 3 строки дают лишний полный цикл CPU (2+2+2=6 → +2). */
         dot_bank += 341;
         while (dot_bank >= 3) {
-            uint32_t cy = cpu6502_step(&g->cpu);
-            if (cy == 0) cy = 2;
-            dot_bank -= (int32_t)cy * 3;
+            if (g->cpu.irq_pending && !(g->cpu.flags & FLAG_I)) {
+                g->cpu.write(0x100 | g->cpu.sp, (uint8_t)(g->cpu.pc >> 8)); g->cpu.sp--;
+                g->cpu.write(0x100 | g->cpu.sp, (uint8_t)g->cpu.pc); g->cpu.sp--;
+                g->cpu.write(0x100 | g->cpu.sp, g->cpu.flags & ~FLAG_B); g->cpu.sp--;
+                g->cpu.flags |= FLAG_I;
+                g->cpu.irq_pending = false;
+                uint8_t lo = g->cpu.read(0xFFFE), hi = g->cpu.read(0xFFFF);
+                g->cpu.pc = lo | ((uint16_t)hi << 8);
+                g->cpu.cycles += 7;
+                dot_bank -= 7 * 3;
+            } else {
+                uint32_t cy = cpu6502_step(&g->cpu);
+                if (cy == 0) cy = 2;
+                dot_bank -= (int32_t)cy * 3;
+            }
         }
     }
 }

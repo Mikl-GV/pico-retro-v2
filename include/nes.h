@@ -17,6 +17,19 @@ typedef struct {
     /* Mapper 2 (UxROM) */
     uint8_t prg_bank;
 
+    /* Mapper 4 (MMC3) */
+    uint8_t mmc3_reg[8];
+    uint8_t mmc3_bank_select;
+    uint8_t mmc3_prg_mode;
+    uint8_t mmc3_chr_mode;
+    uint8_t mmc3_mirror;
+    uint8_t mmc3_irq_latch;
+    uint8_t mmc3_irq_counter;
+    bool    mmc3_irq_enable;
+    bool    mmc3_irq_reload;
+    uint8_t mmc3_ram_protect;
+    uint8_t mmc3_prg_ram[0x2000];
+
     /* CHR RAM (для игр с CHR=0 в заголовке) */
     uint8_t chr_ram[0x2000];
 
