@@ -112,6 +112,7 @@ static void run_nes(void) {
 }
 
 int main(void) {
+    set_sys_clock_khz(250000, true);
     stdio_init_all();
     sleep_ms(500);
 

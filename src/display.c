@@ -51,9 +51,9 @@ static inline void lcd_bus_write(uint8_t b) {
 
 static inline void lcd_wr_strobe(void) {
     gpio_put(LCD_WR_PIN, 0);
-    asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n");
+    asm volatile("nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n");
     gpio_put(LCD_WR_PIN, 1);
-    asm volatile("nop\nnop\nnop\nnop\n");
+    asm volatile("nop\nnop\nnop\nnop\nnop\nnop\n");
 }
 
 static void lcd_write_cmd(uint8_t cmd) {
