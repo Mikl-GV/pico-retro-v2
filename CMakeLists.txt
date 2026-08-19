@@ -26,15 +26,11 @@ target_link_libraries(pico_retro PRIVATE
     pico_stdlib
     hardware_gpio
     hardware_pwm
-    hardware_uart
     pico_multicore
 )
 
-pico_enable_stdio_uart(pico_retro 1)
-target_compile_definitions(pico_retro PRIVATE
-    PICO_DEFAULT_UART_TX_PIN=16
-    PICO_DEFAULT_UART_RX_PIN=17
-)
+# UART отключён — GP16 занят кнопкой Select
+pico_enable_stdio_uart(pico_retro 0)
 
 # pico-extras: композитное видео через pico_scanvideo (пока не используется)
 if (DEFINED ENV{PICO_EXTRAS_PATH})
