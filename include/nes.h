@@ -52,6 +52,7 @@ typedef struct {
     uint8_t joy2_latch;
     uint8_t joy1_strobe;
     uint8_t joy1_buttons;
+    uint8_t joy2_buttons;
     uint32_t rd4016_cnt;
     uint32_t rd4017_cnt;
 

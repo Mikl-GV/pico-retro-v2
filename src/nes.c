@@ -73,8 +73,8 @@ static uint8_t rd(uint16_t a) {
         return 0;
     }
     if (a == 0x4015) return 0x00;
-    if (a == 0x4016) { uint8_t j = g->joy1_latch & 1; if (!g->joy1_strobe) g->joy1_latch = (g->joy1_latch >> 1) | 0x80; g->rd4016_cnt++; return j | 0x40; }
-    if (a == 0x4017) { uint8_t j = g->joy2_latch & 1; if (!g->joy1_strobe) g->joy2_latch = (g->joy2_latch >> 1) | 0x80; g->rd4017_cnt++; return j | 0x40; }
+    if (a == 0x4016) { uint8_t j = g->joy1_latch & 1; if (!g->joy1_strobe) g->joy1_latch = (g->joy1_latch >> 1) | 0x80; g->rd4016_cnt++; return j; }
+    if (a == 0x4017) { uint8_t j = g->joy2_latch & 1; if (!g->joy1_strobe) g->joy2_latch = (g->joy2_latch >> 1) | 0x80; g->rd4017_cnt++; return j; }
     if (a >= 0x4000 && a < 0x6000) return 0;
     if (a >= 0x6000 && a < 0x8000) {
         if (g->mapper == 4) return g->mmc3_prg_ram[a - 0x6000];
@@ -125,7 +125,7 @@ static void wr(uint16_t a, uint8_t v) {
         return;
     }
     if (a == 0x4014) { uint16_t o = (uint16_t)v << 8; for (int i = 0; i < 256; i++) g->oam[i] = g->wram[o + i]; return; }
-    if (a == 0x4016) { g->joy1_strobe = v & 1; if (g->joy1_strobe) g->joy1_latch = g->joy1_buttons; }
+    if (a == 0x4016) { g->joy1_strobe = v & 1; if (g->joy1_strobe) { g->joy1_latch = g->joy1_buttons; g->joy2_latch = g->joy2_buttons; } }
     if (a >= 0x6000 && a < 0x8000) {
         if (g->mapper == 4) {
             if (!g->mmc3_ram_protect) g->mmc3_prg_ram[a - 0x6000] = v;
@@ -178,6 +178,11 @@ void nes_init(nes_t *nes, const uint8_t *rom, uint32_t sz) {
     memset(nes, 0, sizeof(*nes));
     g = nes;
 
+    nes->joy1_buttons = 0xFF;
+    nes->joy2_buttons = 0xFF;
+    nes->joy1_latch = 0xFF;
+    nes->joy2_latch = 0xFF;
+
     static const uint8_t pal[64][3] = {
         {84,84,84},{0,30,116},{8,16,144},{48,0,136},{68,0,100},{92,0,48},{84,4,0},{60,24,0},
         {32,42,0},{8,58,0},{0,64,0},{0,60,0},{0,50,60},{0,0,0},{0,0,0},{0,0,0},
@@ -218,9 +223,6 @@ void nes_run_frame(nes_t *nes) {
     g = nes;
     g->rd4016_cnt = 0;
     g->rd4017_cnt = 0;
-
-    /* Latch joypad state at the start of the frame — stable for the whole frame */
-    g->joy1_latch = g->joy1_buttons;
 
     int32_t dot_bank = 0;
 

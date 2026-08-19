@@ -90,6 +90,7 @@ static void dump_regs(nes_t *n, int f) {
 static void run_nes(void) {
     uint32_t frame = 0;
     uint32_t hold_exit = 0;
+    uint32_t last_print = 0;
 
     while (true) {
         uint8_t pad = joypad_buttons();
@@ -104,8 +105,10 @@ static void run_nes(void) {
             display_stream_end();
         }
 
-        if (frame <= 3 || frame % 60 == 0)
-            dump_regs(&nes, frame);
+        if (frame - last_print >= 30) {
+            printf("joy=%02X cnt=%lu\n", pad, nes.rd4016_cnt);
+            last_print = frame;
+        }
 
         if (!(pad & NES_START)) hold_exit++; else hold_exit = 0;
         if (hold_exit > 60) break;
