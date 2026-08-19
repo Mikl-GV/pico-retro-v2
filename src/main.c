@@ -37,7 +37,7 @@ static const game_entry_t games[] = {
     {"Battle City",    rom_battlecity, ROM_BATTLECITY_SIZE},
     {"Bomberman",      rom_bomberman,  ROM_BOMBERMAN_SIZE},
     {"Duck Tales",     rom_ducktales,  ROM_DUCKTALES_SIZE},
-    {"DuckTales 2",    rom_duck2,     rom_duck2_size},
+    {"Duck Tales II",  rom_duck2,     rom_duck2_size},
     {"Saiyuuki World", rom_saiyuuki,   ROM_SAIYUUKI_SIZE},
     {"SMB",            rom_mario,     rom_mario_size},
 };
@@ -86,26 +86,26 @@ static void draw_about(void) {
     display_fill(BG);
     draw_header();
 
-    display_text_center("About", 2, 2, CURSOR, BG);
+    display_text_center("About", 4, 2, CURSOR, BG);
 
     char buf[40];
     sprintf(buf, "Games: %d", N_GAMES);
-    display_text(buf, 0, 5, 1, WHITE, BG);
+    display_text(buf, 0, 7, 1, WHITE, BG);
 
     extern char __flash_binary_end;
     uint32_t flash_used = (uint32_t)&__flash_binary_end - XIP_BASE;
     uint32_t flash_free = 2 * 1024 * 1024 - flash_used;
     sprintf(buf, "Flash: %luK / %luK free", flash_used / 1024, flash_free / 1024);
-    display_text(buf, 0, 7, 1, WHITE, BG);
+    display_text(buf, 0, 9, 1, WHITE, BG);
 
     extern char __bss_end__;
     extern char __StackLimit;
     uint32_t ram_used = &__bss_end__ - &__StackLimit;
     uint32_t ram_total = 264 * 1024;
     sprintf(buf, "RAM:   %luK / %luK free", ram_used / 1024, (ram_total - ram_used) / 1024);
-    display_text(buf, 0, 9, 1, WHITE, BG);
+    display_text(buf, 0, 11, 1, WHITE, BG);
 
-    display_text("github.com/Mikl-GV/pico-retro", 0, 14, 1, GREEN, BG);
+    display_text("github.com/Mikl-GV/pico-retro", 0, 16, 1, GREEN, BG);
 
     draw_footer();
     display_flush();
@@ -115,10 +115,10 @@ static void draw_settings(void) {
     display_fill(BG);
     draw_header();
 
-    display_text_center("Settings", 2, 2, CURSOR, BG);
-    display_text("CPU: 250 MHz", 0, 5, 1, WHITE, BG);
-    display_text("Disp: ILI9341V 8080", 0, 7, 1, WHITE, BG);
-    display_text("UART: GP16/17 115200", 0, 9, 1, WHITE, BG);
+    display_text_center("Settings", 4, 2, CURSOR, BG);
+    display_text("CPU: 250 MHz", 0, 7, 1, WHITE, BG);
+    display_text("Disp: ILI9341V 8080", 0, 9, 1, WHITE, BG);
+    display_text("UART: GP16/17 115200", 0, 11, 1, WHITE, BG);
 
     draw_footer();
     display_flush();
@@ -161,10 +161,10 @@ static void run_nes(void) {
     }
 }
 
-static void wait_b_release(void) {
+static void wait_b_press(void) {
     while (true) {
         uint8_t p = joypad_buttons();
-        if (p & 0x02) { sleep_ms(50); break; }
+        if (!(p & 0x02)) { sleep_ms(100); break; }
         sleep_ms(20);
     }
 }
@@ -198,11 +198,11 @@ int main(void) {
         if (edge & 4) {
             if (cursor == MENU_ABOUT) {
                 draw_about();
-                wait_b_release();
+                wait_b_press();
                 draw_menu(cursor);
             } else if (cursor == MENU_SETTINGS) {
                 draw_settings();
-                wait_b_release();
+                wait_b_press();
                 draw_menu(cursor);
             } else {
                 nes_init(&nes, games[cursor].rom, games[cursor].size);
