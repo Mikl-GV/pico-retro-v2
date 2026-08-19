@@ -34,6 +34,10 @@
 #define JOY_START_PIN   26
 #define JOY_B_PIN       27
 
+/* UART отладка на GP16 (TX) / GP17 (RX) */
+#define UART_TX_PIN     16
+#define UART_RX_PIN     17
+
 /* Заняты: GP0..11 (дисплей), GP12 (жёстко 3V3), GP13..14 свободны.
  * GP15 (Select), GP16 (UART TX), GP17 (UART RX).
  * GP18..22, GP26..27 (кнопки), GP28 свободен.

@@ -4,6 +4,7 @@
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
+#include "hardware/uart.h"
 
 #include "display.h"
 #include "joypad.h"
@@ -113,9 +114,8 @@ static void run_nes(void) {
 
 int main(void) {
     set_sys_clock_khz(250000, true);
-    stdio_init_all();
+    stdio_uart_init_full(uart0, 115200, 16, 17);
     printf("\n=== pico-retro boot ===\n");
-    display_init();
     joypad_init();
     multicore_launch_core1(core1_main);
     printf("core1 running\n");

@@ -224,6 +224,10 @@ void nes_run_frame(nes_t *nes) {
     for (int scanline = 0; scanline < 262; scanline++) {
         if (scanline == 241) {
             g->ppu_status |= 0x80;
+            /* transfer t→v at start of VBlank (like real PPU) */
+            if (g->ppu_mask & 0x18) {
+                g->v = g->t;
+            }
         }
         if (scanline == 242 && (g->ppu_ctrl & 0x80)) {
             g->cpu.nmi_pending = true;
