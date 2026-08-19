@@ -24,33 +24,25 @@
 /* Делитель такта PIO для записи (такт байта ~2*clkdiv/sysclk = ~96 нс при 125 МГц) */
 #define LCD_PIO_CLKDIV  6.0f
 
-/* ============ Композитный видеовыход (pico-extras / pico_scanvideo) ============ */
-#define VIDEO_PIN       13
-
-/* ============ Звук (PWM) ============ */
-#define AUDIO_L_PIN     14
-#define AUDIO_R_PIN     15
-#define AUDIO_PWM_WRAP  255
-
 /* ============ Кнопки (напрямую, активны LOW, с внутренней подтяжкой) ============ */
 #define JOY_UP_PIN      18
 #define JOY_DOWN_PIN    19
 #define JOY_LEFT_PIN    20
 #define JOY_RIGHT_PIN   21
-#define JOY_AB_PIN      22
+#define JOY_A_PIN       22
 #define JOY_START_PIN   26
-#define JOY_RESET_PIN   27
+#define JOY_B_PIN       27
 
-/* ============ microSD (SPI, bit-bang) ============
- * Аппаратные SPI заняты: SPI0 (GP16..19) — джойстик/звук,
- * SPI1 (GP10..13) — дисплей. SD висит на свободных GPIO и тактуется
- * программно (см. sd_card.c). TODO: PIO SPI для полной скорости. */
-#define SD_CS_PIN       15
-#define SD_SCK_PIN      26
-#define SD_MOSI_PIN     27
-#define SD_MISO_PIN     28
-
-/* Заняты все доступные GPIO: GP0..22 и GP26..28.
+/* Заняты: GP0..11 (дисплей), GP12 (жёстко 3V3), GP13..17 свободны.
+ * GP18..22, GP26..27 (кнопки), GP28 свободен.
  * GP23 (SMPS), GP24 (VBUS detect), GP25 (LED) на разъём Pico НЕ выведены. */
+
+#define JOY_UP_BIT      0x01
+#define JOY_DOWN_BIT    0x02
+#define JOY_LEFT_BIT    0x04
+#define JOY_RIGHT_BIT   0x08
+#define JOY_A_BIT       0x10
+#define JOY_START_BIT   0x20
+#define JOY_B_BIT       0x40
 
 #endif

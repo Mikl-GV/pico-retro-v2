@@ -18,7 +18,7 @@ static volatile uint32_t g_poll_count;
 void joypad_init(void) {
     const uint32_t pins[] = {
         JOY_UP_PIN, JOY_DOWN_PIN, JOY_LEFT_PIN, JOY_RIGHT_PIN,
-        JOY_AB_PIN, JOY_START_PIN, JOY_RESET_PIN
+        JOY_A_PIN, JOY_START_PIN, JOY_B_PIN
     };
     for (uint32_t i = 0; i < sizeof(pins) / sizeof(pins[0]); i++) {
         gpio_init(pins[i]);
@@ -34,9 +34,9 @@ joypad_state_t joypad_read(void) {
     s.down  = !gpio_get(JOY_DOWN_PIN);
     s.left  = !gpio_get(JOY_LEFT_PIN);
     s.right = !gpio_get(JOY_RIGHT_PIN);
-    s.a     = !gpio_get(JOY_AB_PIN);
+    s.a     = !gpio_get(JOY_A_PIN);
     s.start = !gpio_get(JOY_START_PIN);
-    s.b     = !gpio_get(JOY_RESET_PIN);
+    s.b     = !gpio_get(JOY_B_PIN);
     return s;
 }
 
@@ -46,9 +46,9 @@ void joypad_poll(void) {
     if (!gpio_get(JOY_DOWN_PIN))  v |= BTN_DOWN;
     if (!gpio_get(JOY_LEFT_PIN))  v |= BTN_LEFT;
     if (!gpio_get(JOY_RIGHT_PIN)) v |= BTN_RIGHT;
-    if (!gpio_get(JOY_AB_PIN))    v |= BTN_A;
+    if (!gpio_get(JOY_A_PIN))     v |= BTN_A;
     if (!gpio_get(JOY_START_PIN)) v |= BTN_START;
-    if (!gpio_get(JOY_RESET_PIN)) v |= BTN_B;
+    if (!gpio_get(JOY_B_PIN))     v |= BTN_B;
     g_buttons = v;
     g_poll_count++;
 }
