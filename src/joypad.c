@@ -4,20 +4,18 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 
-#define N_KEYS 7
+#define N_KEYS 8
 
 /*
  * Кнопка          | Пин на Pico | NES-бит | Клавиша игры
  * JOY_A_PIN       | GP22        | 0       | A
  * JOY_B_PIN       | GP27        | 1       | B
+ * JOY_SELECT_PIN  | GP16        | 2       | Select
  * JOY_START_PIN   | GP26        | 3       | Start
  * JOY_UP_PIN      | GP18        | 4       | Up
  * JOY_DOWN_PIN    | GP19        | 5       | Down
  * JOY_LEFT_PIN    | GP20        | 6       | Left
  * JOY_RIGHT_PIN   | GP21        | 7       | Right
- *
- * Формат NES ($4016): 0 = нажата, 1 = отпущена.
- * При чтении $4016 биты выдвигаются LSB-first: A, B, Select, Start, Up, Down, Left, Right.
  */
 static const struct {
     uint32_t pin;
@@ -25,6 +23,7 @@ static const struct {
 } keys[N_KEYS] = {
     { JOY_A_PIN,     0 },
     { JOY_B_PIN,     1 },
+    { JOY_SELECT_PIN,2 },
     { JOY_START_PIN, 3 },
     { JOY_UP_PIN,    4 },
     { JOY_DOWN_PIN,  5 },

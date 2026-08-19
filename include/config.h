@@ -30,10 +30,12 @@
 #define JOY_LEFT_PIN    20
 #define JOY_RIGHT_PIN   21
 #define JOY_A_PIN       22
+#define JOY_SELECT_PIN  16
 #define JOY_START_PIN   26
 #define JOY_B_PIN       27
 
-/* Заняты: GP0..11 (дисплей), GP12 (жёстко 3V3), GP13..17 свободны.
+/* Заняты: GP0..11 (дисплей), GP12 (жёстко 3V3), GP13..15 свободны.
+ * GP16 (Select), GP17 свободен.
  * GP18..22, GP26..27 (кнопки), GP28 свободен.
  * GP23 (SMPS), GP24 (VBUS detect), GP25 (LED) на разъём Pico НЕ выведены. */
 
