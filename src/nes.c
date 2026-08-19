@@ -73,8 +73,8 @@ static uint8_t rd(uint16_t a) {
         return 0;
     }
     if (a == 0x4015) return 0x00;
-    if (a == 0x4016) { uint8_t j = g->joy1_latch & 1; if (!g->joy1_strobe) g->joy1_latch = (g->joy1_latch >> 1) | 0x80; g->rd4016_cnt++; return j; }
-    if (a == 0x4017) { uint8_t j = g->joy2_latch & 1; if (!g->joy1_strobe) g->joy2_latch = (g->joy2_latch >> 1) | 0x80; g->rd4017_cnt++; return j; }
+    if (a == 0x4016) { uint8_t j = g->joy1_latch & 1; if (!g->joy1_strobe) g->joy1_latch = (g->joy1_latch >> 1) | 0x80; g->rd4016_cnt++; return j | 0x40; }
+    if (a == 0x4017) { uint8_t j = g->joy2_latch & 1; if (!g->joy1_strobe) g->joy2_latch = (g->joy2_latch >> 1) | 0x80; g->rd4017_cnt++; return j | 0x40; }
     if (a >= 0x4000 && a < 0x6000) return 0;
     if (a >= 0x6000 && a < 0x8000) {
         if (g->mapper == 4) return g->mmc3_prg_ram[a - 0x6000];
