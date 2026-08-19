@@ -113,7 +113,6 @@ static void run_nes(void) {
 }
 
 int main(void) {
-    set_sys_clock_khz(250000, true);
     stdio_uart_init_full(uart0, 115200, 16, 17);
     printf("\n=== pico-retro boot ===\n");
     joypad_init();
