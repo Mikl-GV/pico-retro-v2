@@ -29,11 +29,13 @@ typedef struct {
 #include "rom_battlecity.h"
 #include "rom_bomberman.h"
 #include "rom_ducktales.h"
+#include "rom_duck2.h"
 #include "rom_saiyuuki.h"
 #include "rom_mario.h"
 
 static const game_entry_t games[] = {
     {"SMB",            rom_mario,     rom_mario_size},
+    {"DuckTales 2",    rom_duck2,     rom_duck2_size},
     {"Balloon Fight",  rom_balloon,  ROM_BALLOON_SIZE},
     {"Battle City",    rom_battlecity, ROM_BATTLECITY_SIZE},
     {"Bomberman",      rom_bomberman,  ROM_BOMBERMAN_SIZE},
