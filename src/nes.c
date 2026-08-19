@@ -166,7 +166,7 @@ static void wr(uint16_t a, uint8_t v) {
         /* $C000-$DFFF: IRQ latch / reload */
         if (a < 0xE000) {
             if (!(a & 1)) g->mmc3_irq_latch = v;
-            else g->mmc3_irq_counter = 0;
+            else g->mmc3_irq_counter = g->mmc3_irq_latch;
             return;
         }
         /* $E000-$FFFF: IRQ enable / disable */
@@ -256,14 +256,13 @@ void nes_run_frame(nes_t *nes) {
 
         /* NMI, IRQ — отложенные, обрабатываются между инструкциями CPU */
 
-        if (g->mapper == 4 && g->mmc3_irq_enable && scanline < 240) {
+        if (g->mapper == 4 && scanline < 240) {
             if (g->mmc3_irq_counter == 0) {
                 g->mmc3_irq_counter = g->mmc3_irq_latch;
-            } else {
-                g->mmc3_irq_counter--;
-                if (g->mmc3_irq_counter == 0) {
-                    g->cpu.irq_pending = true;
-                }
+            }
+            g->mmc3_irq_counter--;
+            if (g->mmc3_irq_counter == 0 && g->mmc3_irq_enable) {
+                g->cpu.irq_pending = true;
             }
         }
 
