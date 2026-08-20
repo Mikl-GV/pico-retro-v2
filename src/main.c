@@ -34,16 +34,24 @@ typedef struct {
 #include "rom_saiyuuki.h"
 #include "rom_mariobros.h"
 #include "rom_mario.h"
+#include "rom_mario6.h"
+#include "rom_contra.h"
+#include "rom_dizzy.h"
+#include "rom_nemo.h"
 
 static const game_entry_t games[] = {
     {"Balloon Fight",  rom_balloon,  ROM_BALLOON_SIZE},
     {"Battle City",    rom_battlecity, ROM_BATTLECITY_SIZE},
     {"Bomberman",      rom_bomberman,  ROM_BOMBERMAN_SIZE},
+    {"Contra",         rom_contra,    rom_contra_size},
     {"Duck Tales",     rom_ducktales,  ROM_DUCKTALES_SIZE},
     {"Duck Tales II",  rom_duck2,     rom_duck2_size},
-    {"Saiyuuki World", rom_saiyuuki,   ROM_SAIYUUKI_SIZE},
+    {"Fant. Adv. Dizzy", rom_dizzy,   rom_dizzy_size},
+    {"Little Nemo",    rom_nemo,      rom_nemo_size},
     {"Mario Bros.",    rom_mariobros,  rom_mariobros_size},
+    {"Saiyuuki World", rom_saiyuuki,   ROM_SAIYUUKI_SIZE},
     {"SMB",            rom_mario,     rom_mario_size},
+    {"SMB 6 (hack)",   rom_mario6,    rom_mario6_size},
 };
 #define N_GAMES (sizeof(games) / sizeof(games[0]))
 
@@ -66,20 +74,25 @@ static void draw_footer(void) {
 static void draw_menu(int cursor) {
     display_fill(BG);
     draw_header();
-    for (int i = 0; i < N_GAMES; i++) {
+
+    int visible = 20;
+    int scroll = cursor - visible / 2;
+    if (scroll < 0) scroll = 0;
+    if (scroll > MENU_COUNT - visible) scroll = MENU_COUNT - visible;
+
+    for (int i = scroll; i < scroll + visible && i < MENU_COUNT; i++) {
+        int row = 3 + i - scroll;
         uint16_t clr = (i == cursor) ? CURSOR : WHITE;
-        display_text(">", 0, 2 + i, 2, clr, BG);
-        display_text(games[i].name, 1, 2 + i, 2, clr, BG);
-    }
-    {
-        uint16_t clr = (cursor == MENU_SETTINGS) ? CURSOR : WHITE;
-        display_text(">", 0, 2 + N_GAMES, 2, clr, BG);
-        display_text("Settings", 1, 2 + N_GAMES, 2, clr, BG);
-    }
-    {
-        uint16_t clr = (cursor == MENU_ABOUT) ? CURSOR : WHITE;
-        display_text(">", 0, 3 + N_GAMES, 2, clr, BG);
-        display_text("About", 1, 3 + N_GAMES, 2, clr, BG);
+        const char *name;
+        if (i < N_GAMES) {
+            name = games[i].name;
+        } else if (i == MENU_SETTINGS) {
+            name = "Settings";
+        } else {
+            name = "About";
+        }
+        display_text(">", 0, row, 1, clr, BG);
+        display_text(name, 1, row, 1, clr, BG);
     }
     draw_footer();
     display_flush();

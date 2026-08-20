@@ -1,5 +1,4 @@
 #include "nes.h"
-#include "joypad.h"
 #include <string.h>
 
 static nes_t *g;
@@ -101,7 +100,6 @@ static uint8_t rd(uint16_t a) {
         if (a >= 0x8000) return g->prg_rom[g->prg_bank * 0x4000 + (a - 0x8000)];
         return 0;
     }
-    if (a >= 0xC000) return g->prg_rom[((a - 0xC000) & (g->prg_size - 1))];
     if (a >= 0x8000) return g->prg_rom[((a - 0x8000) & (g->prg_size - 1))];
     return 0;
 }
@@ -120,7 +118,7 @@ static void wr(uint16_t a, uint8_t v) {
         return;
     }
     if (a == 0x4014) { uint16_t o = (uint16_t)v << 8; for (int i = 0; i < 256; i++) g->oam[i] = g->wram[(o + i) & 0x7FF]; return; }
-    if (a == 0x4016) { g->joy1_strobe = v & 1; if (g->joy1_strobe) { g->joy1_latch = joypad_snapshot(); g->joy2_latch = g->joy2_buttons; } }
+    if (a == 0x4016) { g->joy1_strobe = v & 1; if (g->joy1_strobe) { g->joy1_latch = g->joy1_buttons; g->joy2_latch = g->joy2_buttons; } }
     if (a >= 0x6000 && a < 0x8000) {
         if (g->mapper == 4) {
             if (!g->mmc3_ram_protect) g->mmc3_prg_ram[a - 0x6000] = v;

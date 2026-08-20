@@ -36,12 +36,3 @@ uint8_t joypad_buttons(void) {
     }
     return b;
 }
-
-uint8_t joypad_snapshot(void) {
-    uint8_t b = 0xFF;
-    for (int i = 0; i < N_KEYS; i++) {
-        if (!gpio_get(keys[i].pin))
-            b &= ~(1u << keys[i].bit);
-    }
-    return b;
-}
