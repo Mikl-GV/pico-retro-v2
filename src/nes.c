@@ -113,7 +113,7 @@ static uint8_t rd(uint16_t a) {
         uint8_t reg = a & 7;
         if (reg == 2) {
             uint8_t s = g->ppu_status;
-            g->ppu_status &= ~0x80;
+            g->ppu_status &= ~0xE0;
             g->w_latch = false;
             return (s & 0xE0) | (g->ppu_read_buf & 0x1F);
         }
@@ -431,13 +431,13 @@ void nes_run_frame(nes_t *nes) {
             int scroll = (g->t & 0x1F) | (g->x_fine << 3);
 
             for (int tx = 0; tx < 33; tx++) {
-                int phys = (tx * 8 + scroll) >> 3;
                 int px_start = tx * 8 - (scroll & 7);
+                int phys = (tx * 8 + scroll) >> 3;
+                uint16_t nt_off = (uint16_t)(phys >> 5) * 0x400;
+                phys &= 31;
 
-                if (phys < 0 || phys >= 32) continue;
-
-                uint8_t tile = g->vram[nt_mirror(nt_base + (uint16_t)(coarse_y * 32 + phys))];
-                uint8_t at   = g->vram[nt_mirror(nt_base + 0x3C0 + (uint16_t)((coarse_y >> 2) * 8 + (phys >> 2)))];
+                uint8_t tile = g->vram[nt_mirror(nt_base + nt_off + (uint16_t)(coarse_y * 32 + phys))];
+                uint8_t at   = g->vram[nt_mirror(nt_base + nt_off + 0x3C0 + (uint16_t)((coarse_y >> 2) * 8 + (phys >> 2)))];
                 int ps = ((phys & 2) ? 2 : 0) | ((coarse_y & 2) ? 4 : 0);
                 int pal = ((at >> ps) & 3) << 2;
 

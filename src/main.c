@@ -37,7 +37,6 @@ typedef struct {
 #include "rom_saiyuuki.h"
 #include "rom_mariobros.h"
 #include "rom_mario.h"
-#include "rom_mario6.h"
 #include "rom_contra.h"
 #include "rom_dizzy.h"
 #include "rom_nemo.h"
@@ -54,7 +53,6 @@ static const game_entry_t games[] = {
     {"Mario Bros.",    rom_mariobros,  rom_mariobros_size},
     {"Saiyuuki World", rom_saiyuuki,   ROM_SAIYUUKI_SIZE},
     {"SMB",            rom_mario,     rom_mario_size},
-    {"SMB 6 (hack)",   rom_mario6,    rom_mario6_size},
 };
 #define N_GAMES (sizeof(games) / sizeof(games[0]))
 
