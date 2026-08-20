@@ -18,6 +18,9 @@ uint32_t display_read_reg(uint8_t reg, int len);
 
 void display_text(const char *s, int x, int y, int scale, uint16_t color, uint16_t bg);
 void display_text_center(const char *s, int y, int scale, uint16_t color, uint16_t bg);
+void display_text_12(const char *s, int x, int y, uint16_t color, uint16_t bg);
+void display_text_12_gothic(const char *s, int x, int y, uint16_t color, uint16_t bg);
+void display_text_16_gothic(const char *s, int x, int y, uint16_t color, uint16_t bg);
 void display_set_madctl(uint8_t v);
 
 #endif

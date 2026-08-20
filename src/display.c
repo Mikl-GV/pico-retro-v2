@@ -207,6 +207,61 @@ void display_text(const char *s, int x, int y, int scale, uint16_t color, uint16
     }
 }
 
+#include "font12x12.h"
+#include "font12x12_gothic.h"
+#include "font16x16_gothic.h"
+
+void display_text_12(const char *s, int x, int y, uint16_t color, uint16_t bg) {
+    while (*s) {
+        uint8_t c = (uint8_t)*s;
+        if (c < 32 || c > 126) c = '?';
+        int px = x * 12, py = y * 12;
+        for (int row = 0; row < 12; row++) {
+            uint16_t bits = font12x12[c - 32][row];
+            for (int col = 11; col >= 0; col--) {
+                display_set_pixel(px + col, py + row, (bits & 0x8000) ? color : bg);
+                bits <<= 1;
+            }
+        }
+        s++;
+        x++;
+    }
+}
+
+void display_text_12_gothic(const char *s, int x, int y, uint16_t color, uint16_t bg) {
+    while (*s) {
+        uint8_t c = (uint8_t)*s;
+        if (c < 32 || c > 126) c = '?';
+        int px = x * 12, py = y * 12;
+        for (int row = 0; row < 12; row++) {
+            uint16_t bits = font12x12_gothic[c - 32][row];
+            for (int col = 11; col >= 0; col--) {
+                display_set_pixel(px + col, py + row, (bits & 0x8000) ? color : bg);
+                bits <<= 1;
+            }
+        }
+        s++;
+        x++;
+    }
+}
+
+void display_text_16_gothic(const char *s, int x, int y, uint16_t color, uint16_t bg) {
+    while (*s) {
+        uint8_t c = (uint8_t)*s;
+        if (c < 32 || c > 126) c = '?';
+        int px = x * 16, py = y * 16;
+        for (int row = 0; row < 16; row++) {
+            uint16_t bits = font16x16_gothic[c - 32][row];
+            for (int col = 15; col >= 0; col--) {
+                display_set_pixel(px + col, py + row, (bits & 0x8000) ? color : bg);
+                bits <<= 1;
+            }
+        }
+        s++;
+        x++;
+    }
+}
+
 void display_text_center(const char *s, int y, int scale, uint16_t color, uint16_t bg) {
     int stride = 8 * scale;
     display_text(s, (LCD_WIDTH / stride - (int)strlen(s)) / 2, y, scale, color, bg);

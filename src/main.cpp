@@ -16,7 +16,7 @@ extern "C" {
 extern "C" void infones_init(const uint8_t *rom, uint32_t size);
 extern "C" void infones_run_frame(void);
 extern "C" void infones_stop(void);
-extern "C" void draw_film_strip(int first_idx);
+extern "C" void draw_film_strip(int first_idx, int highlight_idx);
 
 /* InfoNES screen buffer (defined in system_pico_retro.cpp) */
 extern uint8_t SCREEN[240][256];
@@ -68,18 +68,18 @@ static const game_entry_t games[] = {
 #define MENU_COUNT    (N_GAMES + 2)
 
 static void draw_header(void) {
-    display_text_center("p i c o - r e t r o", 0, 2, TITLE, BG);
-    display_fill_rect(26, 16, 268, 2, BAR);
+    display_text_16_gothic("PICO-RETRO", 10, 0, TITLE, BG);
+    display_fill_rect(32, 16, 256, 2, BAR);
 }
 
 static void draw_footer(void) {
-    display_fill_rect(26, 232, 268, 2, BAR);
+    display_fill_rect(32, 232, 256, 2, BAR);
     display_text_center("UP/DN  START  B=back", 29, 1, WHITE, BG);
 }
 
 static void draw_menu(int cursor) {
     display_fill(BG);
-    draw_film_strip(cursor);
+    draw_film_strip(cursor, cursor);
     draw_header();
     draw_header();
 
@@ -94,7 +94,7 @@ static void draw_menu(int cursor) {
         uint16_t clr = (i == cursor) ? CURSOR : WHITE;
         const char *name = (i < N_GAMES) ? games[i].name
                          : (i == MENU_SETTINGS) ? "Settings" : "About";
-        display_text(">", 3, row, 1, clr, BG);
+        display_text(">", 4, row, 1, clr, BG);
         display_text(name, 5, row, 1, clr, BG);
     }
     draw_footer();
@@ -123,6 +123,8 @@ static void draw_about(void) {
     display_flush();
 }
 
+static int gothic_font = 0;
+
 static void draw_settings(void) {
     display_fill(BG);
     draw_header();
@@ -131,7 +133,8 @@ static void draw_settings(void) {
     sprintf(clk, "CPU: %lu MHz", clock_get_hz(clk_sys) / 1000000);
     display_text(clk, 0, 7, 1, WHITE, BG);
     display_text("Disp: ILI9341V 8080", 0, 9, 1, WHITE, BG);
-    display_text("UART: GP16/17 115200", 0, 11, 1, WHITE, BG);
+    display_text("Font: 8x8", 0, 11, 1, WHITE, BG);
+    display_text("Font: Gothic", 0, 13, 1, gothic_font ? CURSOR : WHITE, BG);
     draw_footer();
     display_flush();
 }
@@ -176,7 +179,21 @@ int main(void) {
         if (edge & 2) { cursor = (cursor + 1) % MENU_COUNT; draw_menu(cursor); }
         if (edge & 4) {
             if (cursor == MENU_ABOUT) { draw_about(); wait_b_press(); draw_menu(cursor); }
-            else if (cursor == MENU_SETTINGS) { draw_settings(); wait_b_press(); draw_menu(cursor); }
+            else if (cursor == MENU_SETTINGS) {
+                draw_settings();
+                uint32_t prev = 0;
+                while (true) {
+                    uint8_t pad = joypad_buttons();
+                    uint8_t down = ~pad;
+                    uint32_t mask = (((uint32_t)down >> 4) & 1) | (((uint32_t)(down >> 5) & 1) << 1);
+                    uint32_t edge = mask & ~prev;
+                    if (edge & 2) { gothic_font = !gothic_font; draw_settings(); }
+                    if (edge & 1 || !(pad & 0x02)) { sleep_ms(100); break; }
+                    prev = mask;
+                    sleep_ms(20);
+                }
+                draw_menu(cursor);
+            }
             else {
                 infones_init(games[cursor].rom, games[cursor].size);
                 run_nes();

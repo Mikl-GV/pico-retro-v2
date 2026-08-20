@@ -30,21 +30,14 @@
 #define JOY_START_PIN   26
 #define JOY_B_PIN       27
 
-/* ============ Джойстик Sega Mega Drive 2 (DB9, 3-кнопочный) ============
- * 74HC157 мультиплексор: SELECT=0 → направления, SELECT=1 → кнопки.
- * DB9 контакты: 5=3V3, 6=DATA, 7=SELECT, 8=GND */
-#define DB9_SEL_PIN     16
-#define DB9_DATA_PIN    17
-
 /* ============ Аудио (PWM, RC-фильтр) ============ */
 #define AUDIO_L_PIN     13
 #define AUDIO_R_PIN     14
 #define AUDIO_PWM_WRAP  255
 
-/* Заняты: GP0..9 (дисплей), GP10/11 (3V3, не управляются), GP12 (3V3).
- * GP13/14 (аудио PWM), GP15 (Select), GP16 (DB9 SEL), GP17 (DB9 DATA).
- * GP18..22, GP26..27 (кнопки), GP28 — свободен.
- * GP23 (SMPS), GP24 (VBUS detect), GP25 (LED) на разъём Pico НЕ выведены. */
+/* Заняты: GP0..9 (дисплей), GP10 (RST), GP11 (3V3), GP12 (3V3).
+ * GP13/14 (аудио), GP15 (Select), GP16, GP17, GP18..22, GP26..27 (кнопки), GP28 свободен.
+ * GP23 (SMPS), GP24 (VBUS), GP25 (LED) не выведены на разъём. */
 
 #define JOY_UP_BIT      0x01
 #define JOY_DOWN_BIT    0x02

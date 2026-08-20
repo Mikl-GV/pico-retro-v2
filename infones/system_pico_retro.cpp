@@ -86,34 +86,38 @@ int InfoNES_GetSoundBufferSize() { return 0; }
 
 extern "C" {
 
-void draw_film_strip(int first_idx) {
+void draw_film_strip(int first_idx, int highlight_idx) {
     static const uint8_t * const thumbs[] = {
         thumb_balloon, thumb_battlecity, thumb_bomberman, thumb_contra,
         thumb_ducktales, thumb_duck2, thumb_dizzy, thumb_nemo,
-        thumb_mariobros, thumb_saiyuuki, thumb_smb
+        thumb_mariobros, thumb_saiyuuki, thumb_smb,
+        thumb_zelda, thumb_megaman, thumb_castlevania, thumb_metroid
     };
-    uint16_t out = RGB565(20,20,20);
-    uint16_t inn = RGB565(12,12,12);
-    uint16_t bdr = RGB565(31,31,31);
-    display_fill_rect(0, 0, 26, 240, out);
-    display_fill_rect(2, 2, 22, 236, inn);
-    display_fill_rect(294, 0, 26, 240, out);
-    display_fill_rect(296, 2, 22, 236, inn);
-    for (int i = 0; i < 10; i++) {
-        int y = 8 + i * 24;
-        display_fill_rect(10, y, 6, 10, 0x0000);
-        display_fill_rect(304, y, 6, 10, 0x0000);
-    }
+    uint16_t yellow = RGB565(31, 31, 0);
+    uint16_t white = RGB565(31, 63, 31);
+
+    display_fill_rect(0, 0, 32, 240, yellow);
+    display_fill_rect(288, 0, 32, 240, yellow);
+
     for (int side = 0; side < 2; side++) {
-        for (int i = 0; i < 4; i++) {
-            int gi = (first_idx + i + side * 4) % 11;
-            int y = 36 + i * 56;
-            int x0 = side ? 295 : 1;
-            display_fill_rect(x0, y, 24, 24, bdr);
+        int x0 = side ? 289 : 2;
+        for (int i = 0; i < 8; i++) {
+            int gi = (first_idx + i + side * 8) % 15;
+            int y = 2 + i * 29;
             const uint8_t *t = thumbs[gi];
-            for (int py = 0; py < 20; py++)
-                for (int px = 0; px < 20; px++)
-                    display_set_pixel(x0 + 2 + px, y + 2 + py, nes_pal_rgb565[t[py*20+px] & 0x3F]);
+            for (int py = 0; py < 25; py++)
+                for (int px = 0; px < 25; px++)
+                    display_set_pixel(x0 + px, y + py, nes_pal_rgb565[t[py*25+px] & 0x3F]);
+            if (gi == highlight_idx && !(side == 0 && i == 0) && !(side == 1 && i == 7)) {
+                for (int px = 0; px < 25; px++) {
+                    display_set_pixel(x0 + px, y, white);
+                    display_set_pixel(x0 + px, y + 24, white);
+                }
+                for (int py = 0; py < 25; py++) {
+                    display_set_pixel(x0, y + py, white);
+                    display_set_pixel(x0 + 24, y + py, white);
+                }
+            }
         }
     }
 }
