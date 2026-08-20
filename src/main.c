@@ -6,6 +6,7 @@
 #include "pico/stdio_uart.h"
 #include "hardware/clocks.h"
 #include "hardware/uart.h"
+#include "hardware/vreg.h"
 
 #include "display.h"
 #include "joypad.h"
@@ -136,7 +137,9 @@ static void draw_settings(void) {
     draw_header();
 
     display_text_center("Settings", 2, 2, CURSOR, BG);
-    display_text("CPU: 250 MHz", 0, 7, 1, WHITE, BG);
+    char clk[24];
+    sprintf(clk, "CPU: %lu MHz", clock_get_hz(clk_sys) / 1000000);
+    display_text(clk, 0, 7, 1, WHITE, BG);
     display_text("Disp: ILI9341V 8080", 0, 9, 1, WHITE, BG);
     display_text("UART: GP16/17 115200", 0, 11, 1, WHITE, BG);
 
@@ -206,9 +209,14 @@ static void run_nes(void) {
 }
 
 int main(void) {
+    /* 250 МГц на RP2040 стабильны при 1.20 В (штатно 1.10 В / 125 МГц). */
+    vreg_set_voltage(VREG_VOLTAGE_1_20);
+    sleep_ms(10);
     set_sys_clock_khz(250000, true);
+
     stdio_uart_init_full(uart0, 115200, 16, 17);
     printf("\n=== pico-retro boot ===\n");
+    printf("sysclk=%lu MHz\n", clock_get_hz(clk_sys) / 1000000);
     display_init();
     joypad_init();
     printf("init done\n");

@@ -14,8 +14,13 @@ typedef struct {
     uint8_t mapper;
     uint8_t mirror;
 
-    /* Mapper 2 (UxROM) */
+    /* Mapper 2 (UxROM) / 71 (Camerica) */
     uint8_t prg_bank;
+
+    /* Mapper 23 (VRC2) */
+    uint8_t vrc_prg[2];
+    uint8_t vrc_chr[8];
+    uint8_t vrc_mirror;
 
     /* Mapper 4 (MMC3) */
     uint8_t mmc3_reg[8];
@@ -37,6 +42,7 @@ typedef struct {
     uint8_t vram[0x800];
     uint8_t palette[32];
     uint8_t oam[256];
+    uint8_t oam_addr;
     uint8_t ppu_ctrl, ppu_mask, ppu_status;
     uint8_t ppu_scroll, ppu_addr, ppu_data;
     uint16_t v, t;

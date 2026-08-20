@@ -17,7 +17,7 @@ const uint8_t cpu6502_cycles[256] = {
 #define NZ(c,v) do{RF(c,FLAG_N|FLAG_Z);if((v)&0x80)SF(c,FLAG_N);if(!(v))SF(c,FLAG_Z);}while(0)
 
 void cpu6502_init(cpu6502_t *cpu, uint8_t (*rd)(uint16_t), void (*wr)(uint16_t,uint8_t)) {
-    cpu->read=rd; cpu->write=wr; cpu->cycles=0; cpu->irq_pending=false;
+    cpu->read=rd; cpu->write=wr; cpu->cycles=0; cpu->irq_pending=false; cpu->nmi_pending=false;
     cpu6502_reset(cpu);
 }
 

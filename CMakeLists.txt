@@ -36,6 +36,7 @@ target_link_libraries(pico_retro PRIVATE
     hardware_gpio
     hardware_pwm
     hardware_uart
+    hardware_vreg
     pico_multicore
 )
 
