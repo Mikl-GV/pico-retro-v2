@@ -8,6 +8,17 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# GNU arm-none-eabi-ld on Windows cannot open linker scripts if CMAKE_BINARY_DIR
+# contains non-ASCII characters (e.g. D:\Программы\...).
+if (CMAKE_BINARY_DIR MATCHES "[^ -~]")
+    message(FATAL_ERROR
+        "Путь сборки содержит не-ASCII символы, GNU ld на Windows их не открывает.\n"
+        "Собирайте через ASCII-путь:\n"
+        "  cd C:\\pico-work\\pico-retro\n"
+        "  cmake -S . -B out -G Ninja -DPICO_SDK_PATH=C:\\pico-sdk -DPICO_BOARD=pico\n"
+        "  cmake --build out")
+endif()
+
 pico_sdk_init()
 
 add_executable(pico_retro
@@ -17,8 +28,6 @@ add_executable(pico_retro
     src/cpu6502.c
     src/nes.c
 )
-
-pico_generate_pio_header(pico_retro ${CMAKE_CURRENT_LIST_DIR}/ili9341_8bit.pio)
 
 target_include_directories(pico_retro PRIVATE include)
 
@@ -54,3 +63,16 @@ if (PICO_EXTRAS_PATH AND EXISTS "${PICO_EXTRAS_PATH}/external/pico_extras_import
 endif()
 
 pico_add_extra_outputs(pico_retro)
+
+# Extra -L on an ASCII path: ld cannot search CMAKE_BINARY_DIR if it has Cyrillic.
+if (WIN32)
+    set(_ascii_ld_dir "C:/pico-ld/pico-retro")
+    file(MAKE_DIRECTORY "${_ascii_ld_dir}")
+    set(_gen_ld_dir "${CMAKE_BINARY_DIR}/pico-sdk/src/rp2_common/pico_standard_link")
+    foreach(_ld pico_flash_region.ld pico_psram_region.ld)
+        if (EXISTS "${_gen_ld_dir}/${_ld}")
+            configure_file("${_gen_ld_dir}/${_ld}" "${_ascii_ld_dir}/${_ld}" COPYONLY)
+        endif()
+    endforeach()
+    target_link_options(pico_retro PRIVATE "LINKER:-L${_ascii_ld_dir}")
+endif()

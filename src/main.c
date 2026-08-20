@@ -3,6 +3,8 @@
 #include <string.h>
 
 #include "pico/stdlib.h"
+#include "pico/stdio_uart.h"
+#include "hardware/clocks.h"
 #include "hardware/uart.h"
 
 #include "display.h"
@@ -78,7 +80,11 @@ static void draw_menu(int cursor) {
     int visible = 20;
     int scroll = cursor - visible / 2;
     if (scroll < 0) scroll = 0;
-    if (scroll > MENU_COUNT - visible) scroll = MENU_COUNT - visible;
+    if (MENU_COUNT <= visible) {
+        scroll = 0;
+    } else if (scroll > MENU_COUNT - visible) {
+        scroll = MENU_COUNT - visible;
+    }
 
     for (int i = scroll; i < scroll + visible && i < MENU_COUNT; i++) {
         int row = 3 + i - scroll;
@@ -115,7 +121,7 @@ static void draw_about(void) {
 
     extern uint8_t __bss_end__;
     extern uint8_t __StackLimit;
-    uint32_t ram = (uint32_t)&__bss_end__ - (uint32_t)&__StackLimit;
+    uint32_t ram = (uint32_t)&__StackLimit - (uint32_t)&__bss_end__;
     sprintf(buf, "RAM:   %luK / 264K", ram / 1024);
     display_text(buf, 0, 11, 1, WHITE, BG);
 
