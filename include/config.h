@@ -15,14 +15,10 @@
 #define LCD_RS_PIN      8
 #define LCD_WR_PIN      9
 #define LCD_RST_PIN     10
-#define LCD_BL_PIN      11      /* PWM подсветки, через транзистор (80 мА) */
 
 #define LCD_WIDTH       320
 #define LCD_HEIGHT      240
 #define LCD_MADCTL      0x28
-
-/* Делитель такта PIO для записи (такт байта ~2*clkdiv/sysclk = ~96 нс при 125 МГц) */
-#define LCD_PIO_CLKDIV  6.0f
 
 /* ============ Кнопки (напрямую, активны LOW, с внутренней подтяжкой) ============ */
 #define JOY_UP_PIN      18
@@ -34,13 +30,20 @@
 #define JOY_START_PIN   26
 #define JOY_B_PIN       27
 
-/* UART отладка на GP16 (TX) / GP17 (RX) */
-#define UART_TX_PIN     16
-#define UART_RX_PIN     17
+/* ============ Джойстик Sega Mega Drive 2 (DB9, 3-кнопочный) ============
+ * 74HC157 мультиплексор: SELECT=0 → направления, SELECT=1 → кнопки.
+ * DB9 контакты: 5=3V3, 6=DATA, 7=SELECT, 8=GND */
+#define DB9_SEL_PIN     16
+#define DB9_DATA_PIN    17
 
-/* Заняты: GP0..11 (дисплей), GP12 (жёстко 3V3), GP13..14 свободны.
- * GP15 (Select), GP16 (UART TX), GP17 (UART RX).
- * GP18..22, GP26..27 (кнопки), GP28 свободен.
+/* ============ Аудио (PWM, RC-фильтр) ============ */
+#define AUDIO_L_PIN     13
+#define AUDIO_R_PIN     14
+#define AUDIO_PWM_WRAP  255
+
+/* Заняты: GP0..9 (дисплей), GP10/11 (3V3, не управляются), GP12 (3V3).
+ * GP13/14 (аудио PWM), GP15 (Select), GP16 (DB9 SEL), GP17 (DB9 DATA).
+ * GP18..22, GP26..27 (кнопки), GP28 — свободен.
  * GP23 (SMPS), GP24 (VBUS detect), GP25 (LED) на разъём Pico НЕ выведены. */
 
 #define JOY_UP_BIT      0x01

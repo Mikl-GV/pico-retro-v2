@@ -21,35 +21,34 @@ endif()
 
 pico_sdk_init()
 
+add_subdirectory(infones)
+
 add_executable(pico_retro
-    src/main.c
+    src/main.cpp
     src/display.c
     src/joypad.c
-    src/cpu6502.c
-    src/nes.c
 )
 
-target_include_directories(pico_retro PRIVATE include)
+target_include_directories(pico_retro PRIVATE include infones)
 
 target_link_libraries(pico_retro PRIVATE
+    infones
     pico_stdlib
     hardware_gpio
     hardware_pwm
-    hardware_uart
     hardware_vreg
     pico_multicore
 )
 
-pico_enable_stdio_uart(pico_retro 1)
+pico_enable_stdio_uart(pico_retro 0)
 target_compile_options(pico_retro PRIVATE
     -O3
     -funroll-loops
     -finline-functions
 )
 
+
 target_compile_definitions(pico_retro PRIVATE
-    PICO_DEFAULT_UART_TX_PIN=16
-    PICO_DEFAULT_UART_RX_PIN=17
     PICO_NO_HARDWARE_ASSERT=1
 )
 
