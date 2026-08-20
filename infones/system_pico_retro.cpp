@@ -93,14 +93,38 @@ void draw_film_strip(int first_idx, int highlight_idx) {
         thumb_mariobros, thumb_saiyuuki, thumb_smb,
         thumb_zelda, thumb_megaman, thumb_castlevania, thumb_metroid
     };
-    uint16_t yellow = RGB565(31, 31, 0);
     uint16_t white = RGB565(31, 63, 31);
 
-    display_fill_rect(0, 0, 32, 240, yellow);
-    display_fill_rect(288, 0, 32, 240, yellow);
+    /* Purple background with stars (9999-in-1 style) */
+    for (int y = 0; y < 240; y++) {
+        int bright = 8 + (y * 10) / 240;
+        uint16_t purple = RGB565(bright, 0, bright);
+        for (int x = 32; x < 288; x++)
+            display_set_pixel(x, y, purple);
+    }
+    /* Random stars */
+    static const uint8_t stars[] = {
+        40,10, 80,5, 130,8, 180,3, 230,12, 50,25, 100,30, 150,20, 200,15, 250,28,
+        60,40, 120,45, 170,35, 220,38, 255,22, 45,60, 90,55, 140,50, 190,48, 240,58,
+        55,80, 110,75, 160,70, 210,85, 255,72, 70,100, 130,95, 180,90, 230,105, 255,88,
+        50,130, 100,120, 150,115, 200,130, 250,118, 65,150, 120,155, 170,145, 220,160, 255,140,
+        80,180, 130,185, 180,175, 230,190, 255,170, 60,210, 110,205, 160,200, 210,215, 250,195,
+    };
+    for (int i = 0; i < sizeof(stars); i += 2)
+        display_set_pixel(32 + stars[i], stars[i+1], white);
+
+    /* Orange gradient side panels */
+    for (int y = 0; y < 240; y++) {
+        int brightness = 15 + (y * 12) / 240;
+        uint16_t orange = RGB565(31, brightness, 0);
+        for (int x = 0; x < 32; x++) {
+            display_set_pixel(x, y, orange);
+            display_set_pixel(288 + x, y, orange);
+        }
+    }
 
     for (int side = 0; side < 2; side++) {
-        int x0 = side ? 289 : 2;
+        int x0 = side ? 292 : 3;
         for (int i = 0; i < 8; i++) {
             int gi = (first_idx + i + side * 8) % 15;
             int y = 2 + i * 29;
