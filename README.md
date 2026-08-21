@@ -1,36 +1,49 @@
 # pico-retro
 
-Ретроконсоль на Raspberry Pi Pico (RP2040):
+Ретроконсоль на Raspberry Pi Pico (RP2040) для игр NES. Эмулятор — **InfoNES**
+(тот же, что в Murmulator): полный 6502 + PPU + APU и **138 мапперов**.
+
+## Возможности
 
 - Дисплей **WF28ETLAJDNN0** — 2.8", 240×320, контроллер ILI9341V, **8-бит 8080, bit-bang**
 - Управление — **8 кнопок** напрямую на GPIO (A/B/Select/Start/Up/Down/Left/Right)
-- Эмуляция **NES** — CPU 6502 (все 256 опкодов), PPU (тайлы/спрайты/скролл), Mapper 0/2/4 (MMC3)
-- UART отладка на GP16/17 (115200 бод)
-- CPU: 250 МГц (set_sys_clock_khz), дисплейный bit-bang через NOP с сохранением таймингов
+- Эмуляция **NES** на базе InfoNES: 138 мапперов (NROM, UxROM, MMC1/MMC3, VRC2,
+  AxROM, CNROM и др.), полный 6502, PPU с корректным скроллингом, APU (заглушка)
+- Меню в стиле мультикартриджей «9999-in-1»:
+  - фиолетовый фон со звёздами
+  - оранжевые градиентные боковые панели
+  - киноплёночные бордюры: 8 кадров 25×25 с каждой стороны с миниатюрами игр,
+    сплошная перфорация 2×2 с обеих сторон кадров
+  - логотип «PICO-RETRO», подсказка внизу
+- 11 игр вшиты в прошивку (15 сгенерированных миниатюр в `thumbs.h`)
+- CPU: 250 МГц (vreg 1.20 В + `set_sys_clock_khz`)
 
 ## Статус модулей
 
 | Модуль | Статус |
 |---|---|
-| Дисплей ILI9341V (8-бит 8080) | Готов: команды bit-bang, пиксели bit-bang |
-| Кнопки (8 шт., антидребезг, NES-протокол) | Готов |
-| CPU 6502 (полный) | Готов |
-| PPU (тайлы, спрайты, скролл, NMI, t→v) | Готов |
-| Mapper 0 (NROM) | Готов |
-| Mapper 2 (UxROM) | Готов |
-| Mapper 4 (MMC3, CHR/PRG банкинг, IRQ) | Готов |
-| APU (звук) | Не реализован (заглушка) |
+| Дисплей ILI9341V (8-бит 8080 bit-bang, streaming) | Готов |
+| Кнопки (8 шт., NES-протокол, полярность) | Готов |
+| InfoNES (CPU 6502 + PPU + мапперы ×138) | Готов |
+| APU (звук) | Заглушка; аудио моно на GP13 (PWM) |
 | microSD + FatFs | Не реализованы |
+| Джойстик Sega Mega Drive 2 (DB9) | Не подключён (код удалён) |
 
-## Работающие игры
+## Игры в прошивке (11)
 
-- Balloon Fight (mapper 0)
-- Battle City (mapper 0)
-- Bomberman (mapper 0)
-- Duck Tales (mapper 0)
-- DuckTales 2 (mapper 2)
-- Saiyuuki World (mapper 2)
-- SMB — не работает (серый экран, баг CPU/PPU тайминга)
+| Игра | Маппер |
+|---|---|
+| Balloon Fight | 0 (NROM) |
+| Battle City | 0 (NROM) |
+| Bomberman | 0 (NROM) |
+| Contra (J) | 23 (VRC2) |
+| Duck Tales | 0 (NROM) |
+| Duck Tales II | 2 (UxROM) |
+| Fant. Adv. Dizzy | 71 (Camerica) |
+| Little Nemo | 4 (MMC3) |
+| Mario Bros. | 0 (NROM) |
+| Saiyuuki World | 2 (UxROM) |
+| SMB | 4 (MMC3) |
 
 ## Важное про дисплей
 
@@ -50,7 +63,7 @@
 | /RD | 3V3 (жёстко) | 10 |
 | /CS | GND (жёстко) | 7 |
 | /RESET | 10 | 31 |
-| LEDA (подсветка) | 11 (PWM, через транзистор) | 16 |
+| LEDA (подсветка) | 3V3 (жёстко, не управляется) | 16 |
 | IM0 | → GND (8-бит) | 21 |
 | VCI, IOVCC | 3V3 | 6, 32, 33 |
 | GND | GND | 5, 11, 34 |
@@ -71,14 +84,15 @@
 
 Подтяжка: внутренняя pull-up Pico. GND — общий для всех кнопок.
 
-### UART (отладка)
+### Аудио (моно)
 
 | Сигнал | Pico GPIO |
 |---|---|
-| TX | 16 |
-| RX | 17 |
+| Аудио PWM | 13 (RC-фильтр → джек/усилитель) |
 
-115200 бод, 8N1.
+### Свободные выводы
+
+**GP11, GP14, GP28** — свободны (можно использовать для SD, I2S и т.п.).
 
 GP23 (SMPS), GP24 (VBUS detect), GP25 (LED) на разъём Pico не выведены.
 
@@ -92,7 +106,16 @@ cmake .. -G Ninja
 ninja
 ```
 
-Требования: Pico SDK 1.5.1+, cmake, ninja, arm-none-eabi-gcc.
+Требования: Pico SDK, cmake, ninja, arm-none-eabi-gcc.
+
+**Windows:** GNU `arm-none-eabi-ld` не открывает .ld-скрипты при кириллице в пути.
+Собирайте через ASCII-путь `C:\pico-work\pico-retro` (junction на репозиторий):
+
+```powershell
+cd C:\pico-work\pico-retro
+$env:PICO_SDK_PATH = "C:\pico-sdk"
+.\build.ps1
+```
 
 Прошивка: скопировать `build/pico_retro.uf2` в BOOTSEL-режиме.
 
@@ -102,24 +125,35 @@ ninja
 pico-retro/
 ├── CMakeLists.txt
 ├── pico_sdk_import.cmake
-├── ili9341_8bit.pio     # PIO-программа 8-бит 8080 (не используется)
+├── build.ps1            # сборка под Windows (ASCII-путь)
+├── embed_rom.ps1        # конвертация .nes → C-заголовок
 ├── BOM.md               # список компонентов
-├── embed_rom.ps1        # скрипт вшивки ROM в C-заголовки
+├── CHANGES.md           # журнал изменений
 ├── include/
-│   ├── config.h         # карта пинов, размеры, MADCTL
-│   ├── display.h / joypad.h / nes.h / cpu6502.h / audio.h / video.h / sd_card.h
+│   ├── config.h         # карта пинов, размеры
+│   ├── display.h / joypad.h
+│   ├── font8x8.h        # пиксельный шрифт 8×8
+│   ├── thumbs.h         # миниатюры игр (25×25, NES-палитра)
 │   └── rom_*.h          # вшитые образы ROM
 ├── src/
-│   ├── main.c           # меню + игровой цикл
-│   ├── display.c        # дисплей 8-bit 8080 bit-bang
-│   ├── joypad.c         # кнопки + антидребезг + NES-формат
-│   ├── cpu6502.c        # процессор 6502 (полный)
-│   └── nes.c            # PPU + мапперы + рендер
+│   ├── main.cpp         # меню (9999-in-1) + запуск игры
+│   ├── display.c        # ILI9341 8-bit 8080 bit-bang + шрифт
+│   └── joypad.c         # 8 кнопок, NES-формат
+├── infones/             # ядро InfoNES (не модифицировать)
+│   ├── InfoNES.cpp / .h # эмуляция NES
+│   ├── K6502.cpp / .h   # CPU 6502
+│   ├── InfoNES_Mapper.cpp + mapper/*.cpp  # 138 мапперов
+│   ├── InfoNES_pAPU.cpp # APU (заглушка)
+│   └── system_pico_retro.cpp  # системный слой: экран, кнопки, бордюры
 └── lib/
 ```
 
-## Замечание по памяти
+## Память
 
-RP2040 имеет 264 КБ RAM. `framebuffer[320×240×2]` = 150 КБ (дисплей) +
-`fb[240×256]` = 60 КБ (NES). Остаётся ~54 КБ для остального. При добавлении
-APU/SD придётся ужать буфер экрана или перейти на RP2350.
+RP2040: 264 КБ RAM. Прошивка ~1.6 МБ / 2 МБ flash. Дисплей работает в режиме
+streaming (без framebuffer), что экономит ~150 КБ RAM.
+
+## Лицензия
+
+InfoNES распространяется под собственной лицензией (см. файлы в `infones/`).
+Остальной код — по лицензии проекта.
