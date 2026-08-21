@@ -22,6 +22,14 @@ set_source_files_properties(
     PROPERTIES COMPILE_OPTIONS "-std=gnu89"
 )
 
+# system_atari_mcume.cpp misbehaves under -O1/-O2/-O3 (games hang/crash on
+# host with all optimization levels >= -O1, fine at -O0). Keep it at -O0;
+# the core itself stays at -O3 for speed.
+set_source_files_properties(
+    system_atari_mcume.cpp
+    PROPERTIES COMPILE_OPTIONS "-O0"
+)
+
 target_include_directories(atari2600_mcume
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
