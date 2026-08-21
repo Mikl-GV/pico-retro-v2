@@ -125,23 +125,15 @@ extern "C" void emu_DrawScreenPal16(unsigned char *VBuf, int width, int height, 
 {
     (void)stride;
     tv_draw_count++;
-    /* Atari 2600 framebuffer is 160x192. Stretch to fill the whole 256x240
-     * display window (like the NES layer) so the picture spans the full
-     * width. Atari TIA pixels are not square on real TVs, so the wider
-     * aspect (256x240) is the authentic look. */
-    const int SW = 160, SH = 192;   /* source */
-    const int DW = 256, DH = 240;   /* dest */
-    int x0 = 32;                    /* left edge of the 256px window */
-    int y0 = 0;
-    static uint8_t line[256];
+    /* Native Atari 2600 buffer 160x192, 1:1, no scaling/transposing.
+     * Mirrors the NES layer (stream_begin + stream_pixels w x h), centred
+     * in the 256x240 display window. */
+    const int W = 160, H = 192;
+    int x0 = 32 + (256 - W) / 2;   /* 80 */
+    int y0 = (240 - H) / 2;        /* 24 */
 
-    display_stream_begin(x0, y0, DW, DH);
-    for (int dy = 0; dy < DH; dy++) {
-        const uint8_t *row = VBuf + (dy * SH / DH) * SW;
-        for (int dx = 0; dx < DW; dx++)
-            line[dx] = row[(dx * SW) / DW] & 0x3F;
-        display_stream_pixels(line, atari_rgb565_lut, DW, 1);
-    }
+    display_stream_begin(x0, y0, W, H);
+    display_stream_pixels(VBuf, atari_rgb565_lut, W, H);
     display_stream_end();
 }
 
