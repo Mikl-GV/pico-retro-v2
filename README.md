@@ -8,7 +8,7 @@
 - Управление — **8 кнопок** напрямую на GPIO (A/B/Select/Start/Up/Down/Left/Right)
 - **Двухуровневое меню**: выбор системы → выбор игры
 - **NES** (InfoNES): 138 мапперов, полный 6502 + PPU
-- **Atari 2600**: ядро x2600 (mos6507 + TIA + mos6532), банковское переключение F8/F6/F4
+- **Atari 2600**: ядро Virtual VCS (x2600 из MCUME), банковское переключение F8/F6/F4
 - Меню в стиле мультикартриджей «9999-in-1»:
   - фиолетовый фон со звёздами
   - оранжевые градиентные боковые панели
@@ -43,7 +43,7 @@
 | Saiyuuki World | 2 (UxROM) |
 | SMB | 4 (MMC3) |
 
-## Игры Atari 2600 (6)
+## Игры Atari 2600 (11)
 
 | Игра | Размер | Маппер |
 |---|---|---|
@@ -53,6 +53,11 @@
 | Air-Sea Battle | 2 КБ | 2K (без банков) |
 | Asteroids | 8 КБ | F8 |
 | California Games | 16 КБ | F6 |
+| Dark Cavern | 4 КБ | 4K (без банков) |
+| Double Dragon | 16 КБ | F6 |
+| Space Tunnel | 4 КБ | 4K (без банков) |
+| Bumper Bash | 4 КБ | 4K (пинбол) |
+| Video Pinball | 4 КБ | 4K (пинбол) |
 
 ## Меню
 
@@ -170,19 +175,19 @@ pico-retro/
 │   ├── InfoNES_Mapper.cpp + mapper/*.cpp  # 138 мапперов
 │   ├── InfoNES_pAPU.cpp
 │   └── system_pico_retro.cpp  # системный слой: экран, кнопки, бордюры
-├── atari2600/           # ядро Atari 2600 (x2600)
-│   ├── atari/           # TIA, картриджи, memmap
-│   ├── mos6507/         # CPU 6507
-│   ├── mos6532/         # RIOT
-│   ├── rom_*.h          # вшитые ROM игр 2600
-│   └── system_atari.cpp # системный слой Atari
+├── atari2600_mcume/     # ядро Atari 2600 (Virtual VCS из MCUME)
+│   ├── Cpu.c / Memory.c / Raster.c / Vmachine.c / ...  # ядро (C, gnu89)
+│   ├── system_atari_mcume.cpp  # системный слой: экран, кнопки, стат. память
+│   └── emu_stubs.h / vcs_display.h
+├── atari2600/           # НЕ компилируется; rom_*.h (вшитые ROM игр 2600)
 └── lib/
 ```
 
 ## Память
 
-RP2040: 264 КБ RAM. Прошивка ~1.6 МБ / 2 МБ flash. Дисплей работает в режиме
-streaming (без framebuffer), что экономит ~150 КБ RAM.
+RP2040: 264 КБ RAM. Прошивка ~3.6 МБ / 16 МБ flash. Дисплей работает в режиме
+streaming (без framebuffer), что экономит ~150 КБ RAM. ROM Atari читаются
+напрямую из flash (XIP), RAM ~241 КБ из 264 КБ занято (InfoNES + Virtual VCS).
 
 ## Лицензия
 

@@ -25,7 +25,7 @@ set(PICO_FLASH_SIZE_BYTES 16777216 CACHE STRING "Flash size in bytes")
 pico_sdk_init()
 
 add_subdirectory(infones)
-add_subdirectory(atari2600)
+add_subdirectory(atari2600_mcume)
 
 add_executable(pico_retro
     src/main.cpp
@@ -33,11 +33,11 @@ add_executable(pico_retro
     src/joypad.c
 )
 
-target_include_directories(pico_retro PRIVATE include infones atari2600)
+target_include_directories(pico_retro PRIVATE include infones atari2600_mcume atari2600)
 
 target_link_libraries(pico_retro PRIVATE
     infones
-    atari2600
+    atari2600_mcume
     pico_stdlib
     hardware_gpio
     hardware_pwm

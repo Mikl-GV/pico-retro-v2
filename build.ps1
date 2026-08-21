@@ -1,10 +1,11 @@
-# Сборка pico-retro под Windows. Запускать из корня репозитория: .\build.ps1
+# pico-retro Windows build. Run from repo root: .\build.ps1
+# NOTE: keep this file ASCII-only (PS 5.1 misparses UTF-8 Cyrillic).
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
 
-# Пути инструментов (winget-установки)
+# Tool paths (winget installs)
 $sdk = "C:\Users\PCB\pico-sdk"
 $ninjaDir   = "C:\Users\PCB\AppData\Local\Microsoft\WinGet\Packages\Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe"
 $mingwDir   = "C:\Users\PCB\AppData\Local\Microsoft\WinGet\Packages\BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\mingw64\bin"
@@ -16,11 +17,11 @@ $env:CC  = "$mingwDir\gcc.exe"
 $env:CXX = "$mingwDir\g++.exe"
 
 if (-not (Test-Path "$env:PICO_SDK_PATH\pico_sdk_init.cmake")) {
-    throw "Pico SDK не найден в $env:PICO_SDK_PATH"
+    throw "Pico SDK not found at $env:PICO_SDK_PATH"
 }
 
-# GNU ld не открывает .ld-скрипты при кириллице в пути.
-# Собираем через ASCII-junction, если исходники лежат в пути с кириллицей.
+# GNU ld cannot open .ld scripts on paths with Cyrillic.
+# Build through the ASCII junction when the sources sit on a Cyrillic path.
 $src = $root
 $asciiRoot = "C:\pico-work\pico-retro"
 if ($root -match "[^\x00-\x7F]" -and (Test-Path $asciiRoot)) {
@@ -39,5 +40,5 @@ $uf2 = Join-Path $src "out\pico_retro.uf2"
 if (Test-Path $uf2) {
     New-Item -ItemType Directory -Force -Path "$root\build" | Out-Null
     Copy-Item $uf2 "$root\build\pico_retro.uf2" -Force
-    Write-Host "Готово: $root\build\pico_retro.uf2"
+    Write-Host "OK: $root\build\pico_retro.uf2"
 }
