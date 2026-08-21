@@ -19,6 +19,9 @@ if (CMAKE_BINARY_DIR MATCHES "[^ -~]")
         "  cmake --build out")
 endif()
 
+# Плата с 16 МБ флеша (W25Q128): линкер использует весь объём.
+set(PICO_FLASH_SIZE_BYTES 16777216 CACHE STRING "Flash size in bytes")
+
 pico_sdk_init()
 
 add_subdirectory(infones)

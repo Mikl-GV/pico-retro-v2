@@ -262,6 +262,13 @@ void display_text_at_nobg(const char *s, int px, int py, int scale, uint16_t col
     }
 }
 
+/* Текст по центру без фона (прозрачный) */
+void display_text_center_nobg(const char *s, int y, int scale, uint16_t color) {
+    int stride = 8 * scale;
+    int x = (LCD_WIDTH / stride - (int)strlen(s)) / 2;
+    display_text_at_nobg(s, x * stride, y * stride, scale, color);
+}
+
 void display_text_center(const char *s, int y, int scale, uint16_t color, uint16_t bg) {
     int stride = 8 * scale;
     display_text(s, (LCD_WIDTH / stride - (int)strlen(s)) / 2, y, scale, color, bg);

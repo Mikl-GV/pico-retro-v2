@@ -72,7 +72,11 @@ void memmap_read(uint8_t *data)
         memmap_map_riot_address(&address);
         mos6532_read(address, data);
     }
-    if (IS_CART(address)) cartridge_read(address - MEMMAP_CART_START, data);
+    if (IS_CART(address)) {
+        /* Некоторые мапперы (F4 и др.) выбирают банк чтением hotspot */
+        cartridge_bank_select(address, 0);
+        cartridge_read(address - MEMMAP_CART_START, data);
+    }
 
     mos6507_set_data_bus(*data);
 }

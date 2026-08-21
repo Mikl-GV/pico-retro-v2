@@ -739,3 +739,7 @@ void TIA_reset_buffer()
 void TIA_joy1_state(uint8_t state) {
     tia.read_regs[TIA_READ_REG_INPT4] = state ? 0b10000000 : 0b00000000;
 }
+
+void TIA_joy2_state(uint8_t state) {
+    tia.read_regs[TIA_READ_REG_INPT5] = state ? 0b10000000 : 0b00000000;
+}

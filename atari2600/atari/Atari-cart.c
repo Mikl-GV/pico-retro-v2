@@ -20,10 +20,16 @@ static uint8_t current_bank = 0;
 
 void cartridge_read(uint16_t address, uint8_t * data)
 {
-    if (cartridge) {
-        /* address is 0..0xFFF (4K window) */
-        *data = cartridge[(uint32_t)current_bank * 0x1000 + address];
+    if (!cartridge) { *data = 0; return; }
+    /* address is 0..0xFFF (4K window) */
+    uint32_t pos;
+    if (cartridge_size <= 0x1000) {
+        /* 2K ROM зеркалится в 4K окне, 4K без банков */
+        pos = address & (cartridge_size - 1);
+    } else {
+        pos = (uint32_t)current_bank * 0x1000 + address;
     }
+    *data = cartridge[pos];
 }
 
 /* Bank select is triggered by writes to the top of the 4K window.

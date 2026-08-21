@@ -170,6 +170,7 @@ extern tia_pixel_t tia_line_buffer[TIA_COLOUR_CLOCK_VISIBLE];
 
 // Joystic 1
 void TIA_joy1_state(uint8_t state);
+void TIA_joy2_state(uint8_t state);
 
 /* Interfacing functions */
 void TIA_init(void);

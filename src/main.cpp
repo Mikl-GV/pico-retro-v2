@@ -104,27 +104,35 @@ static const system_entry_t systems[] = {
 static void draw_header(const char *subtitle) {
     display_text("PICO-RETRO", 5, 0, 2, TITLE, BG);
     display_fill_rect(32, 16, 256, 2, BAR);
-    if (subtitle) display_text_center(subtitle, 2, 1, GREEN, BG);
+    if (subtitle) {
+        /* Заголовок меню ниже полосы (полоса 16..17, текст с 23) */
+        int len = strlen(subtitle) * 8;
+        display_text_at_nobg(subtitle, (320 - len) / 2, 23, 1, GREEN);
+    }
+}
+
+static void draw_footer_msg(const char *msg) {
+    display_fill_rect(32, 222, 256, 2, BAR);
+    display_text_center_nobg(msg, 29, 1, WHITE);
 }
 
 static void draw_footer(void) {
-    display_fill_rect(32, 232, 256, 2, BAR);
-    display_text_center("UP/DN  START  B=back", 29, 1, WHITE, BG);
+    draw_footer_msg("UP/DN  START  B=back");
 }
 
 /* Универсальный список: заголовок + пункты (игры/системы) */
 static void draw_list(const char *title, const char * const *items, int count,
-                      int cursor, int start_x) {
+                      int cursor, int start_x, const char *footer) {
     display_fill(BG);
     draw_film_strip(cursor, cursor);
     draw_header(title);
     for (int i = 0; i < count && i < 17; i++) {
-        int py = 22 + i * 11;
+        int py = 32 + i * 11;
         uint16_t clr = (i == cursor) ? CURSOR : WHITE;
         display_text_at_nobg(">", start_x, py, 1, clr);
         display_text_at_nobg(items[i], start_x + 8, py, 1, clr);
     }
-    draw_footer();
+    draw_footer_msg(footer);
     display_flush();
 }
 
@@ -134,7 +142,7 @@ static void draw_system_menu(int cursor) {
     for (int i = 0; i < N_SYSTEMS; i++) names[i] = systems[i].name;
     names[SYS_SETTINGS] = "Settings";
     names[SYS_ABOUT] = "About";
-    draw_list("SELECT SYSTEM", names, SYS_COUNT, cursor, 40);
+    draw_list("SELECT SYSTEM", names, SYS_COUNT, cursor, 40, "UP/DN  START  B=back");
 }
 
 /* ---------- Меню игр ---------- */
@@ -144,31 +152,116 @@ static void draw_game_menu(int sys, int cursor) {
     for (int i = 0; i < n; i++) names[i] = systems[sys].games[i].name;
     char title[32];
     sprintf(title, "GAMES - %s", systems[sys].name);
-    draw_list(title, names, n, cursor, 40);
+    draw_list(title, names, n, cursor, 40, "UP/DN  START  B=back");
 }
 
 static void draw_about(void) {
     display_fill(BG);
-    draw_header(NULL);
-    display_text_center("About", 2, 2, CURSOR, BG);
+    draw_header("ABOUT");
     char buf[40];
+    int row = 0;
+    /* Версия и данные прошивки */
+    display_text_at_nobg("pico-retro v2.0", 40, 32 + row++ * 11, 1, CURSOR);
     sprintf(buf, "Games: %d", N_NES_GAMES + N_A2600_GAMES);
-    display_text(buf, 0, 7, 1, WHITE, BG);
-    display_text("github.com/Mikl-GV/pico-retro", 0, 16, 1, GREEN, BG);
+    display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
+    sprintf(buf, "CPU: %lu MHz", clock_get_hz(clk_sys) / 1000000);
+    display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
+    extern char __flash_binary_end;
+    uint32_t flash = (uint32_t)&__flash_binary_end - 0x10000000;
+    sprintf(buf, "Flash: %luK / 16384K", flash / 1024);
+    display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
+    extern uint8_t __bss_end__;
+    extern uint8_t __StackLimit;
+    uint32_t ram = (uint32_t)&__StackLimit - (uint32_t)&__bss_end__;
+    sprintf(buf, "RAM:   %luK / 264K", ram / 1024);
+    display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
+    sprintf(buf, "Systems: NES + Atari 2600");
+    display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
+    row++;
+    /* Разработчики */
+    display_text_at_nobg("Developers:", 40, 32 + row++ * 11, 1, GREEN);
+    display_text_at_nobg("Mikl-GV  (hardware/firmware)", 40, 32 + row++ * 11, 1, GREEN);
+    display_text_at_nobg("MultiTool (emulation/UI)", 40, 32 + row++ * 11, 1, GREEN);
     draw_footer();
     display_flush();
 }
 
-static void draw_settings(void) {
+/* Нарисованный NES-джойстик: светит нажатые кнопки */
+static void draw_pad_test(int px, int py, uint8_t pad) {
+    uint16_t on  = RGB565(31, 31, 0);   /* жёлтый — нажато */
+    uint16_t off = RGB565(8, 8, 8);     /* тёмный — отпущено */
+    uint16_t body = RGB565(22, 22, 22);
+    /* Корпус 216x120 — вся ширина между бордюрами с отступом 20px */
+    display_fill_rect(px, py, 216, 120, body);
+    /* Крестовина (D-pad) слева: 4 стрелки 28x28 крестом */
+    display_fill_rect(px + 26, py + 18, 28, 28, (pad & 0x10) ? on : off);   /* Up */
+    display_fill_rect(px + 26, py + 74, 28, 28, (pad & 0x20) ? on : off);   /* Down */
+    display_fill_rect(px + 4,  py + 46, 28, 28, (pad & 0x40) ? on : off);   /* Left */
+    display_fill_rect(px + 48, py + 46, 28, 28, (pad & 0x80) ? on : off);   /* Right */
+    /* Select (bit2) и Start (bit3) в центре */
+    display_fill_rect(px + 100, py + 52, 24, 10, (pad & 0x04) ? on : off);  /* Select */
+    display_fill_rect(px + 128, py + 52, 24, 10, (pad & 0x08) ? on : off);  /* Start */
+    /* Кнопки B (bit1) и A (bit0) справа по диагонали, крупные */
+    display_fill_rect(px + 158, py + 26, 34, 34, (pad & 0x02) ? on : off);  /* B */
+    display_fill_rect(px + 176, py + 60, 34, 34, (pad & 0x01) ? on : off);  /* A */
+}
+
+/* Тест джойстика: выход по длительному Select */
+static void run_pad_test(void) {
+    uint32_t hold_sel = 0;
+    char buf[16];
     display_fill(BG);
-    draw_header(NULL);
-    display_text_center("Settings", 2, 2, CURSOR, BG);
-    char clk[24];
-    sprintf(clk, "CPU: %lu MHz", clock_get_hz(clk_sys) / 1000000);
-    display_text(clk, 0, 7, 1, WHITE, BG);
-    display_text("Disp: ILI9341V 8080", 0, 9, 1, WHITE, BG);
-    draw_footer();
+    draw_header("PAD TEST");
+    while (true) {
+        uint8_t pad = joypad_buttons();
+        display_fill_rect(40, 30, 240, 185, BG);   /* очистка зоны */
+        draw_pad_test(52, 55, pad);                /* джойстик 216px, по центру с отступом 20px */
+        sprintf(buf, "pad:%02X", pad);
+        display_text_center_nobg(buf, 20, 1, GREEN);  /* pad hex по центру под джойстиком */
+        /* Полоса + прозрачная подсказка внизу */
+        display_fill_rect(32, 222, 256, 2, BAR);
+        display_text_center_nobg("HOLD SEL = exit", 29, 1, WHITE);
+        display_flush();
+        /* Выход: удержание Select (bit2) ~1.5 сек */
+        if (!(pad & 0x04)) { hold_sel++; } else { hold_sel = 0; }
+        if (hold_sel > 40) { sleep_ms(100); break; }
+        sleep_ms(30);
+    }
+}
+
+/* Меню настроек: пункт "Проверка джойстика" */
+static void draw_settings(int cursor) {
+    display_fill(BG);
+    draw_header("SETTINGS");
+    /* Пункт меню ниже названия (название y=23..30, пункт с y=32) */
+    display_text_at_nobg(">", 40, 32, 1, cursor == 0 ? CURSOR : WHITE);
+    display_text_at_nobg("Pad Test", 48, 32, 1, cursor == 0 ? CURSOR : WHITE);
+    draw_footer_msg("UP/DN  START  B=back");
     display_flush();
+}
+
+static void run_settings(void) {
+    int sel = 0;
+    /* Сбрасываем состояние: зажатая при входе кнопка не даст edge в подменю */
+    uint32_t prev = 0;
+    uint8_t p0 = joypad_buttons();
+    uint8_t d0 = ~p0;
+    prev = (((uint32_t)d0 >> 4) & 1) | (((uint32_t)(d0 >> 5) & 1) << 1)
+         | (((uint32_t)(d0 >> 3) & 1) << 2);
+    draw_settings(sel);
+    while (true) {
+        uint8_t p = joypad_buttons();
+        uint8_t d = ~p;
+        uint32_t m = (((uint32_t)d >> 4) & 1) | (((uint32_t)(d >> 5) & 1) << 1)
+                   | (((uint32_t)(d >> 3) & 1) << 2);
+        uint32_t e = m & ~prev;
+        if (e & 1) { sel = (sel + 1) % 2; draw_settings(sel); }
+        if (e & 2) { sel = (sel + 1) % 2; draw_settings(sel); }
+        if (e & 4) { if (sel == 0) run_pad_test(); draw_settings(sel); }  /* Start — вход */
+        if (!(p & 0x02)) { sleep_ms(100); break; }  /* B — назад */
+        prev = m;
+        sleep_ms(20);
+    }
 }
 
 static void wait_b_press(void) {
@@ -196,9 +289,9 @@ static void run_system(int sys, int game) {
             atari2600_poll_joy();
             atari2600_run_frame();
             atari2600_render();
-            /* Выход: Start удержан ~2 сек (по кадрам, надёжно) */
+            /* Выход: Start удержан ~1 сек (по кадрам, надёжно) */
             if (!(pad & 0x08)) hold_frames++; else hold_frames = 0;
-            if (hold_frames > 120) break;
+            if (hold_frames > 60) break;
         }
     }
 }
@@ -230,25 +323,27 @@ int main(void) {
         if (edge & 2) { sys_cursor = (sys_cursor + 1) % SYS_COUNT; draw_system_menu(sys_cursor); }
         if (edge & 4) {
             if (sys_cursor == SYS_ABOUT) { draw_about(); wait_b_press(); draw_system_menu(sys_cursor); }
-            else if (sys_cursor == SYS_SETTINGS) { draw_settings(); wait_b_press(); draw_system_menu(sys_cursor); }
+            else if (sys_cursor == SYS_SETTINGS) { run_settings(); draw_system_menu(sys_cursor); }
             else {
                 /* Подменю игр выбранной системы */
                 int game_cursor = 0;
                 int n = systems[sys_cursor].count;
                 draw_game_menu(sys_cursor, game_cursor);
-                /* Ждём, пока пользователь отпустит Start (0x08) и A (0x01),
-                 * чтобы они не сработали как выбор/запуск в подменю */
+                /* Ждём, пока пользователь отпустит кнопки входа (Start/A), чтобы они не сработали в подменю */
                 while (!((joypad_buttons() & 0x09) == 0x09)) sleep_ms(10);
                 uint32_t prev2 = 0;
                 while (true) {
                     uint8_t p2 = joypad_buttons();
                     uint8_t d2 = ~p2;
-                    uint32_t m2 = (((uint32_t)d2 >> 4) & 1) | (((uint32_t)(d2 >> 5) & 1) << 1)
-                                | (((uint32_t)(d2 >> 3) & 1) << 2) | (((uint32_t)(d2 >> 1) & 1) << 3);
+                    /* bit0=Up, bit1=Down, bit2=Start, bit3=B */
+                    uint32_t m2 = (((uint32_t)d2 >> 4) & 1)
+                                | (((uint32_t)(d2 >> 5) & 1) << 1)
+                                | (((uint32_t)(d2 >> 3) & 1) << 2)
+                                | (((uint32_t)(d2 >> 1) & 1) << 3);
                     uint32_t e2 = m2 & ~prev2;
                     if (e2 & 1) { game_cursor = (game_cursor + n - 1) % n; draw_game_menu(sys_cursor, game_cursor); }
                     if (e2 & 2) { game_cursor = (game_cursor + 1) % n; draw_game_menu(sys_cursor, game_cursor); }
-                    if (e2 & 4) { run_system(sys_cursor, game_cursor); draw_game_menu(sys_cursor, game_cursor); }
+                    if (e2 & 4) { run_system(sys_cursor, game_cursor); draw_game_menu(sys_cursor, game_cursor); }  /* Start — запуск */
                     if (!(p2 & 0x02)) { sleep_ms(100); break; }  /* B — назад */
                     prev2 = m2;
                     sleep_ms(20);
