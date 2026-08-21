@@ -71,6 +71,7 @@ static const game_entry_t nes_games[] = {
 #include "rom_adventure.h"
 #include "rom_adventure8k.h"
 #include "rom_tron.h"
+#include "rom_trondd.h"
 #include "rom_asteroids.h"
 #include "rom_bumperbash.h"
 #include "rom_darkcavern.h"
@@ -78,12 +79,12 @@ static const game_entry_t nes_games[] = {
 #include "rom_frogger.h"
 #include "rom_hero.h"
 #include "rom_halo2600.h"
-#include "rom_kaboom.h"
 #include "rom_keystone.h"
 #include "rom_mspacman.h"
 #include "rom_pitfall.h"
 #include "rom_riverraid.h"
 #include "rom_riverraid2.h"
+#include "rom_robottank.h"
 #include "rom_invaders.h"
 #include "rom_videopinball.h"
 #include "rom_yars.h"
@@ -92,6 +93,7 @@ static const game_entry_t a2600_games[] = {
     {"Adventure",        rom_adventure,   rom_adventure_size},
     {"Adventure 8k",     rom_adventure8k, rom_adventure8k_size},
     {"Adv. of Tron",     rom_tron,    rom_tron_size},
+    {"TRON - Deadly Discs", rom_trondd, rom_trondd_size},
     {"Asteroids",        asteroids,   asteroids_size},
     {"Bumper Bash",      bumperbash,  bumperbash_size},
     {"Dark Cavern",      darkcavern,  darkcavern_size},
@@ -99,14 +101,14 @@ static const game_entry_t a2600_games[] = {
     {"Frogger",          rom_frogger,   rom_frogger_size},
     {"H.E.R.O.",         rom_hero,    rom_hero_size},
     {"Halo 2600",        halo2600,    halo2600_size},
-    {"Kaboom!",          rom_kaboom,    rom_kaboom_size},
     {"Keystone Kapers",  rom_keystone,  rom_keystone_size},
     {"Ms. Pac-Man",      rom_mspacman,  rom_mspacman_size},
     {"Pitfall!",         rom_pitfall, rom_pitfall_size},
     {"River Raid",       rom_riverraid, rom_riverraid_size},
     {"River Raid II",    rom_riverraid2, rom_riverraid2_size},
+    {"Robot Tank",       rom_robottank, rom_robottank_size},
     {"Space Invaders",   rom_invaders,  rom_invaders_size},
-    {"Video Pinball",    videopinball, videopinball_size},
+    {"Video Pinball",    rom_videopinball, rom_videopinball_size},
     {"Yars' Revenge",    rom_yars,      rom_yars_size},
 };
 #define N_A2600_GAMES (sizeof(a2600_games) / sizeof(a2600_games[0]))
@@ -154,11 +156,20 @@ static void draw_list(const char *title, const char * const *items, int count,
     display_fill(BG);
     draw_film_strip(cursor, cursor);
     draw_header(title);
-    for (int i = 0; i < count && i < 17; i++) {
+    /* Окно прокрутки: максимум 17 строк, курсор всегда на экране */
+    const int rows = 17;
+    int top = 0;
+    if (count > rows) {
+        top = cursor - rows / 2;
+        if (top < 0) top = 0;
+        if (top + rows > count) top = count - rows;
+    }
+    for (int i = 0; i < rows && i < count; i++) {
+        int idx = top + i;
         int py = 32 + i * 11;
-        uint16_t clr = (i == cursor) ? CURSOR : WHITE;
+        uint16_t clr = (idx == cursor) ? CURSOR : WHITE;
         display_text_at_nobg(">", start_x, py, 1, clr);
-        display_text_at_nobg(items[i], start_x + 8, py, 1, clr);
+        display_text_at_nobg(items[idx], start_x + 8, py, 1, clr);
     }
     draw_footer_msg(footer);
     display_flush();

@@ -12,7 +12,7 @@
 Заменил примитивный x2600 (dgrubb) на порт **Virtual VCS / x2600 из MCUME** (mcume/MCUME_pico/picovcs/):
 - Папка **`atari2600_mcume/`** — ядро + `system_atari_mcume.cpp` (наш слой, без emuapi).
 - Файлы ядра собираются как **-std=gnu89** (код 1996 г.: implicit int `register p1;`, `__inline`, GNU-расширения).
-- **ROM читается напрямую из flash (XIP)** через `theCart` → экономия ~32 КБ RAM. Только 2K-карты (Air-Sea Battle) зеркалятся в маленький буфер 4К.
+- ROM читается напрямую из flash (XIP) через `theCart` → экономия ~32 КБ RAM. Только 2K-карты (Air-Sea Battle) зеркалятся в маленький буфер 4К.
 - **Добавлен банкинг F4 (32К, 8 банков, $FF4..$FFB)** — в оригинальном MCUME его нет (только F8/F6/E0/FA/F6SC). Это чинит **DK Arcade (32К F4)**.
 - Автоопределение банка по размеру ROM: 8К→F8(1), 16К→F6(2), 32К→F4(6), иначе 0.
 - Рендер: `mainloop()` сам зовёт `tv_display()` → `emu_DrawScreenPal16` → наш `display_stream_pixels`. `atari2600_render()` пустой.
@@ -82,11 +82,21 @@ $env:PICO_SDK_PATH = "C:\Users\PCB\pico-sdk"
 - **RAM-оптимизация**: ROM из flash (XIP), не в RAM — экономия ~32 КБ
 - Прошлый лимит (dgrubb x2600 не тянул DK/California/DD) снят — теперь F4 есть
 
-## Игры Atari (11)
-Halo 2600 (4K), Thrust (16K F6), DK Arcade (32K F4), Air-Sea Battle (2K),
-Asteroids (8K F8), California Games (16K F6), Dark Cavern (4K),
-Double Dragon (16K F6), Space Tunnel (4K), **Bumper Bash (4K, пинбол)**,
-**Video Pinball (4K, пинбол)**
+## RAM SHARING (union NES SCREEN ↔ Atari-буферы) — с 2026-08-21
+- **SCREEN** (NES framebuffer, 60 КБ) в `system_pico_retro.cpp` — **общая память** для Atari.
+- Все Atari-буферы (`pool_buf` VBuf 30К + `cart_small` 4К + `scratch` 4К + `cartram` 1К + `colvect` 0.2К ≈ 40 КБ) размещаются ВНУТРИ SCREEN (`system_atari_mcume.cpp`).
+- NES и Atari не работают одновременно → экономия ~56 КБ RAM. bss: 216 КБ → **159.5 КБ** (свободно ~100 КБ).
+- SCREEN выровнен `__attribute__((aligned(8)))` — чтобы `colvect` (каст к `uint32*`) был 4-выровнен.
+- `cart_ram` (16К TEST-копия ROM ≤16K) **удалён** — все ROM читаются из flash (XIP), как 32K.
+
+## Игры Atari (19)
+Adventure, Adventure 8k, Adv. of Tron, Asteroids, Bumper Bash, Dark Cavern,
+Double Dragon, Frogger, H.E.R.O., Halo 2600, Kaboom!, Keystone Kapers,
+Ms. Pac-Man, Pitfall!, River Raid, River Raid II, Space Invaders,
+Video Pinball, Yars' Revenge
+
+## Меню
+- Скролл списка игр (до 17 строк, курсор всегда виден) — добавлен для 23 игр Atari.
 
 ## Игры NES (11)
 Balloon Fight, Battle City, Bomberman, Contra, Duck Tales, Duck Tales II,

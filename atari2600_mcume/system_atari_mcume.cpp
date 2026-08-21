@@ -47,13 +47,17 @@ extern "C" {
 /* Static memory pool for the handful of emu_Malloc calls the core makes.
  * VBuf is the 160x192 screen buffer; cart_small is only used to mirror
  * 2K ROMs (the core needs a 4K window). Larger ROMs are read straight
- * from flash (XIP) via theCart -> rom, saving ~32 KB of RAM. */
-static uint8_t pool_buf[160 * 192 + 8];
-static uint8_t cart_small[4096];
-static uint8_t cart_ram[16384];      /* TEST: ROM copy in RAM for <=16K games */
-static uint8_t scratch_buf[4096];
-static uint8_t cartram_buf[1024];
-static uint8_t colvect_buf[28 * 8];
+ * from flash (XIP) via theCart -> rom, saving ~32 KB of RAM.
+ *
+ * RAM SHARING: all Atari buffers live INSIDE the NES SCREEN buffer
+ * (60 KB, system_pico_retro.cpp). NES and Atari never run at the same
+ * time, so reusing the same memory saves ~56 KB of RAM. */
+extern "C" uint8_t SCREEN[240][256];
+static uint8_t *pool_buf     = &SCREEN[0][0];
+static uint8_t *cart_small   = &SCREEN[0][0] + 160 * 192 + 8;
+static uint8_t *scratch_buf  = &SCREEN[0][0] + 160 * 192 + 8 + 4096;
+static uint8_t *cartram_buf  = &SCREEN[0][0] + 160 * 192 + 8 + 4096 + 4096;
+static uint8_t *colvect_buf  = &SCREEN[0][0] + 160 * 192 + 8 + 4096 + 4096 + 1024;
 
 /* Options that At2600.c used to define (file not ported). */
 extern "C" {
@@ -149,8 +153,11 @@ extern "C" void emu_DrawScreenPal16(unsigned char *VBuf, int width, int height, 
     for (int sy = 0; sy < H; sy++) {
         const uint8_t *row = VBuf + sy * SW;
         for (int dx = 0; dx < W; dx++)
-            line[dx] = row[(dx * SW) / W] & 0x3F;
-        display_stream_pixels(line, atari_rgb565_lut, W, 1);
+            /* VBuf holds raw TIA colour bytes (0..255): bits 7-4 = hue,
+             * bits 3-0 = luminance, and the 256-entry colortable maps them
+             * 1:1. Use the full (unmasked) stream so hues 4..15 survive. */
+            line[dx] = row[(dx * SW) / W];
+        display_stream_pixels_full(line, atari_rgb565_lut, W, 1);
     }
     display_stream_end();
 }
@@ -183,12 +190,10 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size)
         memcpy(cart_small + 2048, rom, 2048);
         theCart = cart_small;
         rom_size = 4096;
-    } else if (size <= 16384) {
-        /* TEST: copy <=16K ROMs into RAM to rule out flash-XIP issues */
-        memcpy(cart_ram, rom, size);
-        theCart = cart_ram;
-        rom_size = (int)size;
     } else {
+        /* Read the ROM straight from flash (XIP) — the core banks by
+         * re-pointing theRom into theCart, and byte reads work fine from
+         * XIP memory (same as 32K carts). No RAM copy needed. */
         theCart = (BYTE *)rom;
         rom_size = (int)size;
         if (rom_size < 2048) {

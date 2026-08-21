@@ -17,6 +17,10 @@ extern "C" {
 
 #include "../include/thumbs.h"
 
+/* SCREEN doubles as the shared RAM pool for the Atari core (buffers placed
+ * inside it via system_atari_mcume.cpp). Must stay 8-byte aligned so the
+ * Atari colvect buffer (cast to uint32*) keeps 4-byte alignment. */
+__attribute__((aligned(8)))
 uint8_t SCREEN[NES_DISP_HEIGHT][NES_DISP_WIDTH];
 static uint16_t line_buf[NES_DISP_WIDTH];
 

@@ -2,6 +2,26 @@
 
 Ветка: `cursor/windows-build-and-menu-fixes`
 
+## 2026-08-21 — RAM-оптимизация (union) + возврат 4 игр Atari
+
+### RAM: общий буфер NES SCREEN ↔ Atari (~56 КБ экономии)
+- NES `SCREEN` (60 КБ framebuffer) теперь **общая память** для всех буферов
+  Atari-ядра: `pool_buf` (VBuf 30К), `cart_small` (4К), `scratch_buf` (4К),
+  `cartram_buf` (1К), `colvect_buf` (0.2К) лежат внутри него
+  (`system_atari_mcume.cpp`, `extern uint8_t SCREEN[240][256]`).
+- Системы не запускаются одновременно, поэтому конфликтов нет.
+- SCREEN выровнен `aligned(8)` — `colvect` (каст к `uint32*`) остаётся 4-выровненным.
+- **bss: 216 060 → 159 508 байт** (~56 КБ свободно, теперь ~100 КБ запаса под SMS).
+
+### XIP: убрана TEST-копия ROM ≤16K
+- `cart_ram[16384]` (временная копия ROM в RAM) удалён. Все ROM (2K/4K/8K/16K/32K)
+  читаются напрямую из flash (XIP), как 32K-картриджи. 2K по-прежнему
+  зеркалится в `cart_small[4096]`.
+
+### Меню: скролл списков
+- `draw_list()` теперь прокручивает список (макс. 17 строк), курсор всегда на
+  экране.
+
 ## 2026-08-21 — Atari 2600: переход на ядро Virtual VCS (MCUME) + F4
 
 ### Ядро Atari: Virtual VCS (x2600) из MCUME

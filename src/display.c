@@ -178,6 +178,19 @@ void display_stream_pixels(const uint8_t *src, const uint16_t *lut, int w, int h
     }
 }
 
+/* Полный 8-бит индекс (0..255), без маски 0x3F — для Atari 2600 (TIA-байт
+ * напрямую индексирует 256-цветную палитру: bits 7-4 = hue, bits 3-0 = lum). */
+void display_stream_pixels_full(const uint8_t *src, const uint16_t *lut, int w, int h) {
+    for (int yy = 0; yy < h; yy++) {
+        const uint8_t *row = src + yy * w;
+        for (int xx = 0; xx < w; xx++) {
+            uint16_t c = lut[row[xx]];
+            lcd_bus_write((uint8_t)(c >> 8)); lcd_wr_strobe();
+            lcd_bus_write((uint8_t)(c & 0xFF)); lcd_wr_strobe();
+        }
+    }
+}
+
 /* Запись одного RGB565 пикселя в уже открытый stream-окно */
 void display_stream_pixel16(uint16_t c) {
     lcd_bus_write((uint8_t)(c >> 8)); lcd_wr_strobe();
