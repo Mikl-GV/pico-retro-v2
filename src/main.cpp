@@ -12,14 +12,17 @@ extern "C" {
 #include "config.h"
 }
 
-/* InfoNES system layer API from system_pico_retro.cpp */
+/* InfoNES system layer */
 extern "C" void infones_init(const uint8_t *rom, uint32_t size);
 extern "C" void infones_run_frame(void);
 extern "C" void infones_stop(void);
 extern "C" void draw_film_strip(int first_idx, int highlight_idx);
 
-/* InfoNES screen buffer (defined in system_pico_retro.cpp) */
-extern uint8_t SCREEN[240][256];
+/* Atari 2600 system layer */
+extern "C" void atari2600_init(const uint8_t *rom, uint32_t size);
+extern "C" void atari2600_run_frame(void);
+extern "C" void atari2600_render(void);
+extern "C" void atari2600_poll_joy(void);
 
 #define BG      0x0000
 #define CURSOR  RGB565(31, 31, 0)
@@ -27,10 +30,8 @@ extern uint8_t SCREEN[240][256];
 #define WHITE   RGB565(31, 63, 31)
 #define BAR     RGB565(31, 63, 31)
 #define GREEN   RGB565(0, 63, 0)
-#define SPK_OUT  RGB565(20, 20, 20)
-#define SPK_INN  RGB565(12, 12, 12)
-#define SPK_HOLE RGB565(0, 0, 0)
 
+/* ---------- Игры NES ---------- */
 typedef struct {
     const char     *name;
     const uint8_t  *rom;
@@ -49,7 +50,7 @@ typedef struct {
 #include "rom_dizzy.h"
 #include "rom_nemo.h"
 
-static const game_entry_t games[] = {
+static const game_entry_t nes_games[] = {
     {"Balloon Fight",  rom_balloon,  ROM_BALLOON_SIZE},
     {"Battle City",    rom_battlecity, ROM_BATTLECITY_SIZE},
     {"Bomberman",      rom_bomberman,  ROM_BOMBERMAN_SIZE},
@@ -62,16 +63,48 @@ static const game_entry_t games[] = {
     {"Saiyuuki World", rom_saiyuuki,   ROM_SAIYUUKI_SIZE},
     {"SMB",            rom_mario,     rom_mario_size},
 };
-#define N_GAMES (sizeof(games) / sizeof(games[0]))
-#define MENU_SETTINGS (N_GAMES)
-#define MENU_ABOUT    (N_GAMES + 1)
-#define MENU_COUNT    (N_GAMES + 2)
+#define N_NES_GAMES (sizeof(nes_games) / sizeof(nes_games[0]))
 
-static int gothic_font = 0;
+/* ---------- Игры Atari 2600 ---------- */
+#include "rom_halo2600.h"
+#include "rom_thrust.h"
+#include "rom_dkarcade2600.h"
+#include "rom_airsea.h"
+#include "rom_asteroids.h"
+#include "rom_calgames.h"
 
-static void draw_header(void) {
+static const game_entry_t a2600_games[] = {
+    {"Halo 2600",        halo2600,    halo2600_size},
+    {"Thrust",           thrust,      thrust_size},
+    {"DK Arcade",        dkarcade2600, dkarcade2600_size},
+    {"Air-Sea Battle",   airsea,      airsea_size},
+    {"Asteroids",        asteroids,   asteroids_size},
+    {"California Games", calgames,    calgames_size},
+};
+#define N_A2600_GAMES (sizeof(a2600_games) / sizeof(a2600_games[0]))
+
+/* ---------- Системы ---------- */
+typedef struct {
+    const char *name;
+    const game_entry_t *games;
+    int count;
+    int emu; /* 0 = NES, 1 = Atari 2600 */
+} system_entry_t;
+
+static const system_entry_t systems[] = {
+    {"NES",          nes_games,  N_NES_GAMES,  0},
+    {"Atari 2600",   a2600_games, N_A2600_GAMES, 1},
+};
+#define N_SYSTEMS (sizeof(systems) / sizeof(systems[0]))
+#define SYS_SETTINGS (N_SYSTEMS)
+#define SYS_ABOUT    (N_SYSTEMS + 1)
+#define SYS_COUNT    (N_SYSTEMS + 2)
+
+/* ---------- Экранные элементы ---------- */
+static void draw_header(const char *subtitle) {
     display_text("PICO-RETRO", 5, 0, 2, TITLE, BG);
     display_fill_rect(32, 16, 256, 2, BAR);
+    if (subtitle) display_text_center(subtitle, 2, 1, GREEN, BG);
 }
 
 static void draw_footer(void) {
@@ -79,48 +112,48 @@ static void draw_footer(void) {
     display_text_center("UP/DN  START  B=back", 29, 1, WHITE, BG);
 }
 
-static void draw_menu(int cursor) {
+/* Универсальный список: заголовок + пункты (игры/системы) */
+static void draw_list(const char *title, const char * const *items, int count,
+                      int cursor, int start_x) {
     display_fill(BG);
     draw_film_strip(cursor, cursor);
-    draw_header();
-    draw_header();
-
-    int visible = 20;
-    int scroll = cursor - visible / 2;
-    if (scroll < 0) scroll = 0;
-    if (MENU_COUNT <= visible) scroll = 0;
-    else if (scroll > MENU_COUNT - visible) scroll = MENU_COUNT - visible;
-
-    /* Меню: каждая строка 8px + 3px отступ между строками (шаг 11px) */
-    for (int i = scroll; i < scroll + visible && i < MENU_COUNT; i++) {
-        int py = 22 + (i - scroll) * 11;
+    draw_header(title);
+    for (int i = 0; i < count && i < 17; i++) {
+        int py = 22 + i * 11;
         uint16_t clr = (i == cursor) ? CURSOR : WHITE;
-        const char *name = (i < N_GAMES) ? games[i].name
-                         : (i == MENU_SETTINGS) ? "Settings" : "About";
-        display_text_at_nobg(">", 32, py, 1, clr);
-        display_text_at_nobg(name, 40, py, 1, clr);
+        display_text_at_nobg(">", start_x, py, 1, clr);
+        display_text_at_nobg(items[i], start_x + 8, py, 1, clr);
     }
     draw_footer();
     display_flush();
 }
 
+/* ---------- Меню систем ---------- */
+static void draw_system_menu(int cursor) {
+    static const char *names[SYS_COUNT];
+    for (int i = 0; i < N_SYSTEMS; i++) names[i] = systems[i].name;
+    names[SYS_SETTINGS] = "Settings";
+    names[SYS_ABOUT] = "About";
+    draw_list("SELECT SYSTEM", names, SYS_COUNT, cursor, 40);
+}
+
+/* ---------- Меню игр ---------- */
+static void draw_game_menu(int sys, int cursor) {
+    static const char *names[32];
+    int n = systems[sys].count;
+    for (int i = 0; i < n; i++) names[i] = systems[sys].games[i].name;
+    char title[32];
+    sprintf(title, "GAMES - %s", systems[sys].name);
+    draw_list(title, names, n, cursor, 40);
+}
+
 static void draw_about(void) {
     display_fill(BG);
-    draw_header();
-
+    draw_header(NULL);
     display_text_center("About", 2, 2, CURSOR, BG);
     char buf[40];
-    sprintf(buf, "Games: %d", N_GAMES);
+    sprintf(buf, "Games: %d", N_NES_GAMES + N_A2600_GAMES);
     display_text(buf, 0, 7, 1, WHITE, BG);
-    extern char __flash_binary_end;
-    uint32_t flash = (uint32_t)&__flash_binary_end - 0x10000000;
-    sprintf(buf, "Flash: %luK / 2048K", flash / 1024);
-    display_text(buf, 0, 9, 1, WHITE, BG);
-    extern uint8_t __bss_end__;
-    extern uint8_t __StackLimit;
-    uint32_t ram = (uint32_t)&__StackLimit - (uint32_t)&__bss_end__;
-    sprintf(buf, "RAM:   %luK / 264K", ram / 1024);
-    display_text(buf, 0, 11, 1, WHITE, BG);
     display_text("github.com/Mikl-GV/pico-retro", 0, 16, 1, GREEN, BG);
     draw_footer();
     display_flush();
@@ -128,7 +161,7 @@ static void draw_about(void) {
 
 static void draw_settings(void) {
     display_fill(BG);
-    draw_header();
+    draw_header(NULL);
     display_text_center("Settings", 2, 2, CURSOR, BG);
     char clk[24];
     sprintf(clk, "CPU: %lu MHz", clock_get_hz(clk_sys) / 1000000);
@@ -146,9 +179,28 @@ static void wait_b_press(void) {
     }
 }
 
-static void run_nes(void) {
-    infones_run_frame();
-    infones_stop();
+/* ---------- Запуск игры по системе ---------- */
+static void run_system(int sys, int game) {
+    const game_entry_t *g = &systems[sys].games[game];
+    if (systems[sys].emu == 0) {
+        /* NES */
+        infones_init(g->rom, g->size);
+        infones_run_frame();   /* InfoNES_Cycle() крутится внутри, до выхода */
+        infones_stop();
+    } else {
+        /* Atari 2600 */
+        atari2600_init(g->rom, g->size);
+        uint32_t hold_frames = 0;
+        while (true) {
+            uint8_t pad = joypad_buttons();
+            atari2600_poll_joy();
+            atari2600_run_frame();
+            atari2600_render();
+            /* Выход: Start удержан ~2 сек (по кадрам, надёжно) */
+            if (!(pad & 0x08)) hold_frames++; else hold_frames = 0;
+            if (hold_frames > 120) break;
+        }
+    }
 }
 
 int main(void) {
@@ -161,8 +213,8 @@ int main(void) {
     joypad_init();
     printf("init done\n");
 
-    int cursor = 0;
-    draw_menu(cursor);
+    int sys_cursor = 0;
+    draw_system_menu(sys_cursor);
     uint32_t prev_down = 0;
 
     for (;;) {
@@ -174,15 +226,34 @@ int main(void) {
                       | (((uint32_t)(down >> 1) & 1) << 3);
         uint32_t edge = mask & ~prev_down;
 
-        if (edge & 1) { cursor = (cursor + MENU_COUNT - 1) % MENU_COUNT; draw_menu(cursor); }
-        if (edge & 2) { cursor = (cursor + 1) % MENU_COUNT; draw_menu(cursor); }
+        if (edge & 1) { sys_cursor = (sys_cursor + SYS_COUNT - 1) % SYS_COUNT; draw_system_menu(sys_cursor); }
+        if (edge & 2) { sys_cursor = (sys_cursor + 1) % SYS_COUNT; draw_system_menu(sys_cursor); }
         if (edge & 4) {
-            if (cursor == MENU_ABOUT) { draw_about(); wait_b_press(); draw_menu(cursor); }
-            else if (cursor == MENU_SETTINGS) { draw_settings(); wait_b_press(); draw_menu(cursor); }
+            if (sys_cursor == SYS_ABOUT) { draw_about(); wait_b_press(); draw_system_menu(sys_cursor); }
+            else if (sys_cursor == SYS_SETTINGS) { draw_settings(); wait_b_press(); draw_system_menu(sys_cursor); }
             else {
-                infones_init(games[cursor].rom, games[cursor].size);
-                run_nes();
-                draw_menu(cursor);
+                /* Подменю игр выбранной системы */
+                int game_cursor = 0;
+                int n = systems[sys_cursor].count;
+                draw_game_menu(sys_cursor, game_cursor);
+                /* Ждём, пока пользователь отпустит Start (0x08) и A (0x01),
+                 * чтобы они не сработали как выбор/запуск в подменю */
+                while (!((joypad_buttons() & 0x09) == 0x09)) sleep_ms(10);
+                uint32_t prev2 = 0;
+                while (true) {
+                    uint8_t p2 = joypad_buttons();
+                    uint8_t d2 = ~p2;
+                    uint32_t m2 = (((uint32_t)d2 >> 4) & 1) | (((uint32_t)(d2 >> 5) & 1) << 1)
+                                | (((uint32_t)(d2 >> 3) & 1) << 2) | (((uint32_t)(d2 >> 1) & 1) << 3);
+                    uint32_t e2 = m2 & ~prev2;
+                    if (e2 & 1) { game_cursor = (game_cursor + n - 1) % n; draw_game_menu(sys_cursor, game_cursor); }
+                    if (e2 & 2) { game_cursor = (game_cursor + 1) % n; draw_game_menu(sys_cursor, game_cursor); }
+                    if (e2 & 4) { run_system(sys_cursor, game_cursor); draw_game_menu(sys_cursor, game_cursor); }
+                    if (!(p2 & 0x02)) { sleep_ms(100); break; }  /* B — назад */
+                    prev2 = m2;
+                    sleep_ms(20);
+                }
+                draw_system_menu(sys_cursor);
             }
         }
         prev_down = mask;

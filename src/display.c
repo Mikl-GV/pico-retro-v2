@@ -178,6 +178,12 @@ void display_stream_pixels(const uint8_t *src, const uint16_t *lut, int w, int h
     }
 }
 
+/* Запись одного RGB565 пикселя в уже открытый stream-окно */
+void display_stream_pixel16(uint16_t c) {
+    lcd_bus_write((uint8_t)(c >> 8)); lcd_wr_strobe();
+    lcd_bus_write((uint8_t)(c & 0xFF)); lcd_wr_strobe();
+}
+
 void display_stream_end(void) {}
 
 void display_flush(void) {}

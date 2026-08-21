@@ -12,6 +12,7 @@ void display_set_pixel(int x, int y, uint16_t color);
 void display_blit(const uint8_t *src, const uint16_t *lut, int x, int y, int w, int h);
 void display_stream_begin(int x, int y, int w, int h);
 void display_stream_pixels(const uint8_t *src, const uint16_t *lut, int w, int h);
+void display_stream_pixel16(uint16_t c);
 void display_stream_end(void);
 void display_flush(void);
 uint32_t display_read_reg(uint8_t reg, int len);
