@@ -70,7 +70,7 @@ static const game_entry_t games[] = {
 static int gothic_font = 0;
 
 static void draw_header(void) {
-    display_text("PICO-RETRO", 1, 0, 2, TITLE, BG);
+    display_text("PICO-RETRO", 5, 0, 2, TITLE, BG);
     display_fill_rect(32, 16, 256, 2, BAR);
 }
 
@@ -91,13 +91,14 @@ static void draw_menu(int cursor) {
     if (MENU_COUNT <= visible) scroll = 0;
     else if (scroll > MENU_COUNT - visible) scroll = MENU_COUNT - visible;
 
+    /* Меню: каждая строка 8px + 3px отступ между строками (шаг 11px) */
     for (int i = scroll; i < scroll + visible && i < MENU_COUNT; i++) {
-        int row = 3 + i - scroll;
+        int py = 22 + (i - scroll) * 11;
         uint16_t clr = (i == cursor) ? CURSOR : WHITE;
         const char *name = (i < N_GAMES) ? games[i].name
                          : (i == MENU_SETTINGS) ? "Settings" : "About";
-        display_text(">", 4, row, 1, clr, BG);
-        display_text(name, 5, row, 1, clr, BG);
+        display_text_at_nobg(">", 32, py, 1, clr);
+        display_text_at_nobg(name, 40, py, 1, clr);
     }
     draw_footer();
     display_flush();

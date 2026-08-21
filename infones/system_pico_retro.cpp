@@ -87,6 +87,8 @@ int InfoNES_GetSoundBufferSize() { return 0; }
 extern "C" {
 
 void draw_film_strip(int first_idx, int highlight_idx) {
+    static bool pal_ready = false;
+    if (!pal_ready) { init_palette(); pal_ready = true; }
     static const uint8_t * const thumbs[] = {
         thumb_balloon, thumb_battlecity, thumb_bomberman, thumb_contra,
         thumb_ducktales, thumb_duck2, thumb_dizzy, thumb_nemo,
@@ -123,11 +125,14 @@ void draw_film_strip(int first_idx, int highlight_idx) {
         }
     }
 
+    /* Sprocket holes (перфорация) — чёрные, у внутреннего края панелей */
+    /* Рисуем ПОСЛЕ кадров, чтобы не перекрывались */
+
     for (int side = 0; side < 2; side++) {
         int x0 = side ? 292 : 3;
         for (int i = 0; i < 8; i++) {
             int gi = (first_idx + i + side * 8) % 15;
-            int y = 2 + i * 29;
+            int y = 4 + i * 29;
             const uint8_t *t = thumbs[gi];
             for (int py = 0; py < 25; py++)
                 for (int px = 0; px < 25; px++)
@@ -143,6 +148,16 @@ void draw_film_strip(int first_idx, int highlight_idx) {
                 }
             }
         }
+    }
+
+    /* Сплошная перфорация киноплёнки по ОБЕИМ сторонам кадров */
+    /* Внешние края: x=0 (лево) и x=317 (право) */
+    /* Внутренние края: x=28 (лево) и x=288 (право) */
+    for (int y = 2; y < 238; y += 5) {
+        display_fill_rect(1, y, 2, 2, 0x0000);    /* левый внешний */
+        display_fill_rect(29, y, 2, 2, 0x0000);   /* левый внутренний */
+        display_fill_rect(289, y, 2, 2, 0x0000);  /* правый внутренний */
+        display_fill_rect(317, y, 2, 2, 0x0000);  /* правый внешний */
     }
 }
 

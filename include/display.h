@@ -17,6 +17,8 @@ void display_flush(void);
 uint32_t display_read_reg(uint8_t reg, int len);
 
 void display_text(const char *s, int x, int y, int scale, uint16_t color, uint16_t bg);
+void display_text_at(const char *s, int px, int py, int scale, uint16_t color, uint16_t bg);
+void display_text_at_nobg(const char *s, int px, int py, int scale, uint16_t color);
 void display_text_center(const char *s, int y, int scale, uint16_t color, uint16_t bg);
 void display_set_madctl(uint8_t v);
 

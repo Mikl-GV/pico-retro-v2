@@ -207,6 +207,55 @@ void display_text(const char *s, int x, int y, int scale, uint16_t color, uint16
     }
 }
 
+/* Текст в абсолютных пиксельных координатах */
+void display_text_at(const char *s, int px, int py, int scale, uint16_t color, uint16_t bg) {
+    int stride = 8 * scale;
+    while (*s) {
+        uint8_t c = (uint8_t)*s;
+        if (c < 32 || c > 126) c = '?';
+        const uint8_t *g = font8x8[c - 32];
+        for (int row = 0; row < 8; row++) {
+            uint8_t bits = g[row];
+            for (int col = 7; col >= 0; col--) {
+                uint16_t clr = (bits & 0x80) ? color : bg;
+                bits <<= 1;
+                int bx = px + col * scale;
+                int by = py + row * scale;
+                for (int sy = 0; sy < scale; sy++)
+                    for (int sx = 0; sx < scale; sx++)
+                        display_set_pixel(bx + sx, by + sy, clr);
+            }
+        }
+        s++;
+        px += stride;
+    }
+}
+
+/* Текст в абсолютных координатах без фона (прозрачный) */
+void display_text_at_nobg(const char *s, int px, int py, int scale, uint16_t color) {
+    int stride = 8 * scale;
+    while (*s) {
+        uint8_t c = (uint8_t)*s;
+        if (c < 32 || c > 126) c = '?';
+        const uint8_t *g = font8x8[c - 32];
+        for (int row = 0; row < 8; row++) {
+            uint8_t bits = g[row];
+            for (int col = 7; col >= 0; col--) {
+                if (bits & 0x80) {
+                    int bx = px + col * scale;
+                    int by = py + row * scale;
+                    for (int sy = 0; sy < scale; sy++)
+                        for (int sx = 0; sx < scale; sx++)
+                            display_set_pixel(bx + sx, by + sy, color);
+                }
+                bits <<= 1;
+            }
+        }
+        s++;
+        px += stride;
+    }
+}
+
 void display_text_center(const char *s, int y, int scale, uint16_t color, uint16_t bg) {
     int stride = 8 * scale;
     display_text(s, (LCD_WIDTH / stride - (int)strlen(s)) / 2, y, scale, color, bg);
