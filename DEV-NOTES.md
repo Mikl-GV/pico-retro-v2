@@ -57,29 +57,32 @@ $env:PICO_SDK_PATH = "C:\Users\PCB\pico-sdk"
 | Up/Down/Left/Right | 18/19/20/21 | 4/5/6/7 |
 
 ## Atari 2600 — особенности
-- Банки: F8 (8К→$1FF8), F6 (16К→$1FF6), F4 (32К→$1FF4); 2К/4К без банков (2К зеркалится)
-- Fire: кнопка A → INPT4 (джойстик 1) + INPT5 (джойстик 2)
-- Направления: SWCHA D4-D7
+- Банки: F8 (8К→$0FF8), F6 (16К→$0FF6), F4 (32К→$0FF4); 2К/4К без банков (2К зеркалится)
+- Стартовый банк — последний (ресет-вектор в конце)
+- Банк-селект и при чтении, и при записи hotspot (как в x2600/MCUME)
+- Fire: кнопка A → INPT4/INPT5. **Полярность (подтверждена на железе): покой=1 (0x80), нажатие=0 (0x00)**
+- Направления: SWCHA — Up=D4, Down=D5, **Right=D6, Left=D7** (не перепутать!)
+- Сложность: SWCHB bit6=P1 (0=amateur,1=expert), настройка в Settings→Atari Diff, применяется при старте игры
 - Выход из игры: удержание Start (~1.5-2 сек)
-- `atari2600_run_frame` использует статические счётчики кадра, сбрасываются в `atari2600_init`
-- Известные проблемы: чёрный экран/мусор у части игр (Thrust/DK/California), может быть из-за мапперов
+- `atari2600_run_frame` — статические счётчики кадра + предохранитель (3000 итераций), кадр = 192 видимых строк
+- `atari2600_init` очищает кадровый буфер (memset), сбрасывает синхронизацию
+- Известные проблемы: примитивное ядро x2600 (dgrubb) — часть банкованных игр (Double Dragon, California, DK) могут не работать. Планируется переход на полноценное ядро MCUME x2600 (в mcume/MCUME_pico/picovcs/)
 
-## RAM/Flash
-- RAM: 264 КБ (RP2040). Текущий BSS ~185 КБ → запас ~80 КБ
-- Flash: 16 МБ. Прошивка ~1.7 МБ → запас ~14 МБ
-- Ограничение — RAM, не flash. SMS нужно впихивать в остаток.
+## Игры Atari (11)
+Halo 2600 (4K), Thrust (16K F6), DK Arcade (32K F4), Air-Sea Battle (2K),
+Asteroids (8K F8), California Games (16K F6), Dark Cavern (4K),
+Double Dragon (16K F6), Space Tunnel (4K), **Bumper Bash (4K, пинбол)**,
+**Video Pinball (4K, пинбол)**
 
-## Полезные команды
-```powershell
-# Пересобрать после изменения CMakeLists
-cmake -S C:\pico-work\pico-retro -B C:\pico-work\pico-retro\out -G Ninja `
-  -DPICO_SDK_PATH=C:\Users\PCB\pico-sdk -DPICO_BOARD=pico -DPICO_FLASH_SIZE_BYTES=16777216
-ninja -C C:\pico-work\pico-retro\out
-# Пуш в v2
-git push v2 HEAD:main
-```
+## Игры NES (11)
+Balloon Fight, Battle City, Bomberman, Contra, Duck Tales, Duck Tales II,
+Fant. Adv. Dizzy, Little Nemo, Mario Bros., Saiyuuki World, SMB
+
+## Settings
+- **Pad Test** — тест кнопок с нарисованным NES-геймпадом, выход по удержанию Select
+- **Atari Diff** — переключатель сложности P1 (Novice/Expert)
 
 ## Известные TODO
 - [ ] Интеграция SMS (ядро в `smsplus/`, подключить в CMake + меню)
-- [ ] Отладить Atari (чёрный экран у части игр)
+- [ ] Переход Atari на ядро MCUME x2600 (для совместимости с банкованными играми)
 - [ ] Возможно: переиспользование RAM через union (все эмуляторы сразу)
