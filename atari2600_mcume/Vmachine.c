@@ -31,6 +31,7 @@
 #include "sound.h"
 #include "vmachine.h"
 #include "tiasound.h"
+#include "emu_stubs.h"
 
 #define snd 1
 

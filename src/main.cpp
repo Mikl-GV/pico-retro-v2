@@ -240,27 +240,30 @@ static void run_pad_test(void) {
 
 /* Подменю сложности Atari 2600: P1 Novice/Expert */
 static int atari_p1_expert = 0;
+static void draw_atari_diff(void) {
+    display_fill(BG);
+    draw_header("ATARI DIFF");
+    display_text_at_nobg("P1 Difficulty:", 40, 32, 1, WHITE);
+    display_text_at_nobg(atari_p1_expert ? "Expert" : "Novice", 40, 44, 1,
+                         atari_p1_expert ? CURSOR : WHITE);
+    draw_footer_msg("UP/DN  START  B=back");
+    display_flush();
+}
 static void run_atari_diff(void) {
     uint32_t prev = 0;
     uint8_t p0 = joypad_buttons();
     uint8_t d0 = ~p0;
     prev = (((uint32_t)d0 >> 4) & 1) | (((uint32_t)(d0 >> 5) & 1) << 1)
          | (((uint32_t)(d0 >> 3) & 1) << 2);
+    draw_atari_diff();
     while (true) {
-        display_fill(BG);
-        draw_header("ATARI DIFF");
-        display_text_at_nobg("P1 Difficulty:", 40, 32, 1, WHITE);
-        display_text_at_nobg(atari_p1_expert ? "Expert" : "Novice", 40, 44, 1,
-                             atari_p1_expert ? CURSOR : WHITE);
-        draw_footer_msg("UP/DN  START  B=back");
-        display_flush();
         uint8_t p = joypad_buttons();
         uint8_t d = ~p;
         uint32_t m = (((uint32_t)d >> 4) & 1) | (((uint32_t)(d >> 5) & 1) << 1)
                    | (((uint32_t)(d >> 3) & 1) << 2);
         uint32_t e = m & ~prev;
-        if (e & 1) { atari_p1_expert = !atari_p1_expert; atari2600_set_difficulty(atari_p1_expert); }
-        if (e & 2) { atari_p1_expert = !atari_p1_expert; atari2600_set_difficulty(atari_p1_expert); }
+        if (e & 1) { atari_p1_expert = !atari_p1_expert; atari2600_set_difficulty(atari_p1_expert); draw_atari_diff(); }
+        if (e & 2) { atari_p1_expert = !atari_p1_expert; atari2600_set_difficulty(atari_p1_expert); draw_atari_diff(); }
         if (e & 4 || !(p & 0x02)) { sleep_ms(100); break; }
         prev = m;
         sleep_ms(20);

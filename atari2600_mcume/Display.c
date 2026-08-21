@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "types.h"
 #include "btypes.h"
 #include "vmachine.h"
@@ -30,6 +31,7 @@
 #include "colours.h"
 #include "resource.h"
 #include "vcs_display.h"
+#include "emu_stubs.h"
 
 
 int vwidth,vheight,theight;

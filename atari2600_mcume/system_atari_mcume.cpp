@@ -122,11 +122,22 @@ extern "C" void emu_SetPaletteEntry(unsigned char r, unsigned char g, unsigned c
 extern "C" void emu_DrawScreenPal16(unsigned char *VBuf, int width, int height, int stride)
 {
     (void)stride;
-    /* width=160, height=192; centre in the 256x240 display window. */
-    int x0 = 32 + (256 - width) / 2;   /* 80 */
-    int y0 = (240 - height) / 2;       /* 24 */
-    display_stream_begin(x0, y0, width, height);
-    display_stream_pixels(VBuf, atari_rgb565_lut, width, height);
+    /* Atari 2600 framebuffer is 160x192 (4:3). Scale up to 200x240
+     * (factor 1.25, nearest neighbour) preserving the 4:3 aspect ratio and
+     * filling the whole height of the 256x240 display window. */
+    const int SW = 160, SH = 192;   /* source */
+    const int DW = 200, DH = 240;   /* dest */
+    int x0 = 32 + (256 - DW) / 2;   /* 60 */
+    int y0 = 0;
+    static uint8_t line[200];
+
+    display_stream_begin(x0, y0, DW, DH);
+    for (int dy = 0; dy < DH; dy++) {
+        const uint8_t *row = VBuf + (dy * SH / DH) * SW;
+        for (int dx = 0; dx < DW; dx++)
+            line[dx] = row[(dx * SW) / DW] & 0x3F;
+        display_stream_pixels(line, atari_rgb565_lut, DW, 1);
+    }
     display_stream_end();
 }
 
