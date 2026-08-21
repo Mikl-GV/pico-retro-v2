@@ -111,6 +111,7 @@ extern "C" void emu_printi(int val) { (void)val; }
 /* ------------------------------------------------------------------ */
 
 static uint16_t atari_rgb565_lut[256];
+static int tv_draw_count = 0;
 
 /* The core's create_cmap() (in Display.c) walks the static colortable and
  * calls emu_SetPaletteEntry() for every index — that builds our RGB565 LUT. */
@@ -124,6 +125,7 @@ extern "C" void emu_DrawScreenPal16(unsigned char *VBuf, int width, int height, 
     (void)stride;
     (void)width;
     (void)height;
+    tv_draw_count++;
     /* Atari 2600 TIA pixels are not square: 160 points span the full 4:3
      * width, so each point is ~1.6x wider than tall. Stretch horizontally
      * to 256 (matching the NES window width), keep the native 192 rows so
@@ -198,15 +200,23 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size)
     mcume_ready = 1;
 }
 
-/* Run one emulated frame. The core's mainloop runs ~7600 iterations and
- * calls tv_display() at each VSYNC; we just run it and let it draw. */
+/* Run one emulated frame. mainloop() executes a fixed 7600 CPU iterations,
+ * which is less than a full 2600 frame (~20000), so a single call may not
+ * reach the VSYNC that triggers tv_display() -> blank screen. Loop mainloop()
+ * until at least one frame has been drawn (capped so a game that never
+ * generates VSYNC still yields and the menu/exit keeps working). */
 extern "C" void atari2600_run_frame(void)
 {
     if (!mcume_ready) return;
     extern void mainloop(void);
     extern void vcs_Input(int key);
-    vcs_Input(0);          /* reads joypad_buttons() into the core state */
-    mainloop();
+    int before = tv_draw_count;
+    int guard = 0;
+    while (tv_draw_count == before && guard < 8) {
+        vcs_Input(0);          /* reads joypad_buttons() into the core state */
+        mainloop();
+        guard++;
+    }
 }
 
 extern "C" void atari2600_poll_joy(void)
