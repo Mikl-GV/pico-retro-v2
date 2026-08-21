@@ -45,7 +45,7 @@ target_link_libraries(pico_retro PRIVATE
     pico_multicore
 )
 
-pico_enable_stdio_uart(pico_retro 0)
+pico_enable_stdio_uart(pico_retro 1)
 target_compile_options(pico_retro PRIVATE
     -O3
     -funroll-loops

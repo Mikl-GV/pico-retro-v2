@@ -67,12 +67,16 @@ void keyjoy(void) {
 	if ( !(k & MASK_OSKB) ) {
 		key = k;
 	}	
-	if (key & MASK_JOY2_UP)  v1 &= 0x0E;
-	if (key & MASK_JOY2_DOWN) v1 &= 0x0D;
-	if (key & MASK_JOY2_RIGHT)  v1 &= 0x0B;
-	if (key & MASK_JOY2_LEFT)  v1 &= 0x07;
+	if (key & MASK_JOY2_UP)    v1 &= 0x0E;   /* Up    -> SWCHA D4 (0x10) */
+	if (key & MASK_JOY2_DOWN)  v1 &= 0x0D;   /* Down  -> SWCHA D5 (0x20) */
+	if (key & MASK_JOY2_LEFT)  v1 &= 0x0B;   /* Left  -> SWCHA D6 (0x40) */
+	if (key & MASK_JOY2_RIGHT) v1 &= 0x07;   /* Right -> SWCHA D7 (0x80) */
 	
 	riotRead[0x280]=(v1 << 4) | v2;
+	{
+	    static int jlog = 0;
+	    if (jlog < 25) { printf("[joy] SWCHA=%02X\n", riotRead[0x280]); jlog++; }
+	}
 }
 
 void keycons(void) {

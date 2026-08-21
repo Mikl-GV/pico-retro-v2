@@ -50,6 +50,7 @@ extern "C" {
  * from flash (XIP) via theCart -> rom, saving ~32 KB of RAM. */
 static uint8_t pool_buf[160 * 192 + 8];
 static uint8_t cart_small[4096];
+static uint8_t cart_ram[16384];      /* TEST: ROM copy in RAM for <=16K games */
 static uint8_t scratch_buf[4096];
 static uint8_t cartram_buf[1024];
 static uint8_t colvect_buf[28 * 8];
@@ -89,7 +90,11 @@ extern "C" unsigned int emu_LoadFile(const char *filepath, void *buf, int size)
 extern "C" int emu_GetPad(void)
 {
     /* joypad_buttons(): 0 = pressed, active LOW, NES bit order.
-     * Returns MCUME JOY2 bit masks (keyjoy()/keycons() read those). */
+     * Returns MCUME masks read by keyjoy()/keycons()/keytrig():
+     *   B (bit1)   -> MASK_KEY_USER1 = Game Reset
+     *   Select (bit2) -> MASK_KEY_USER2 = Game Select
+     *   A (bit0)   -> MASK_JOY2_BTN = fire
+     *   d-pad      -> MASK_JOY2_* directions */
     uint8_t pad = joypad_buttons();
     int k = 0;
     if (!(pad & 0x10)) k |= MASK_JOY2_UP;       /* Up    */
@@ -97,6 +102,8 @@ extern "C" int emu_GetPad(void)
     if (!(pad & 0x80)) k |= MASK_JOY2_RIGHT;    /* Right */
     if (!(pad & 0x40)) k |= MASK_JOY2_LEFT;     /* Left  */
     if (!(pad & 0x01)) k |= MASK_JOY2_BTN;      /* A = fire */
+    if (!(pad & 0x02)) k |= MASK_KEY_USER1;     /* B = Game Reset */
+    if (!(pad & 0x04)) k |= MASK_KEY_USER2;     /* Select = Game Select */
     return k;
 }
 
@@ -111,7 +118,7 @@ extern "C" void emu_printi(int val) { (void)val; }
 /* ------------------------------------------------------------------ */
 
 static uint16_t atari_rgb565_lut[256];
-static int tv_draw_count = 0;
+extern "C" int tv_draw_count = 0;
 
 /* The core's create_cmap() (in Display.c) walks the static colortable and
  * calls emu_SetPaletteEntry() for every index — that builds our RGB565 LUT. */
@@ -126,6 +133,8 @@ extern "C" void emu_DrawScreenPal16(unsigned char *VBuf, int width, int height, 
     (void)width;
     (void)height;
     tv_draw_count++;
+    if ((tv_draw_count % 30) == 1)
+        printf("[a2600] frame drawn #%d\n", tv_draw_count);
     /* Atari 2600 TIA pixels are not square: 160 points span the full 4:3
      * width, so each point is ~1.6x wider than tall. Stretch horizontally
      * to 256 (matching the NES window width), keep the native 192 rows so
@@ -174,6 +183,11 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size)
         memcpy(cart_small + 2048, rom, 2048);
         theCart = cart_small;
         rom_size = 4096;
+    } else if (size <= 16384) {
+        /* TEST: copy <=16K ROMs into RAM to rule out flash-XIP issues */
+        memcpy(cart_ram, rom, size);
+        theCart = cart_ram;
+        rom_size = (int)size;
     } else {
         theCart = (BYTE *)rom;
         rom_size = (int)size;
@@ -197,6 +211,9 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size)
     init_hardware();
     tv_on();
 
+    printf("[a2600] init done: rom_size=%d bank=%d cart=%p\n",
+           rom_size, base_opts.bank, (void*)theCart);
+
     mcume_ready = 1;
 }
 
@@ -212,7 +229,7 @@ extern "C" void atari2600_run_frame(void)
     extern void vcs_Input(int key);
     int before = tv_draw_count;
     int guard = 0;
-    while (tv_draw_count == before && guard < 8) {
+    while (tv_draw_count == before && guard < 40) {
         vcs_Input(0);          /* reads joypad_buttons() into the core state */
         mainloop();
         guard++;

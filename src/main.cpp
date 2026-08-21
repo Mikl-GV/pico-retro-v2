@@ -4,6 +4,7 @@
 
 #include "pico/stdlib.h"
 #include "hardware/clocks.h"
+#include "hardware/uart.h"
 #include "hardware/vreg.h"
 
 extern "C" {
@@ -67,30 +68,46 @@ static const game_entry_t nes_games[] = {
 #define N_NES_GAMES (sizeof(nes_games) / sizeof(nes_games[0]))
 
 /* ---------- Игры Atari 2600 ---------- */
-#include "rom_halo2600.h"
-#include "rom_thrust.h"
-#include "rom_dkarcade2600.h"
-#include "rom_airsea.h"
+#include "rom_adventure.h"
+#include "rom_adventure8k.h"
+#include "rom_tron.h"
 #include "rom_asteroids.h"
-#include "rom_calgames.h"
+#include "rom_bumperbash.h"
 #include "rom_darkcavern.h"
 #include "rom_doubledragon.h"
-#include "rom_spacetunnel.h"
-#include "rom_bumperbash.h"
+#include "rom_frogger.h"
+#include "rom_hero.h"
+#include "rom_halo2600.h"
+#include "rom_kaboom.h"
+#include "rom_keystone.h"
+#include "rom_mspacman.h"
+#include "rom_pitfall.h"
+#include "rom_riverraid.h"
+#include "rom_riverraid2.h"
+#include "rom_invaders.h"
 #include "rom_videopinball.h"
+#include "rom_yars.h"
 
 static const game_entry_t a2600_games[] = {
-    {"Halo 2600",        halo2600,    halo2600_size},
-    {"Thrust",           thrust,      thrust_size},
-    {"DK Arcade",        dkarcade2600, dkarcade2600_size},
-    {"Air-Sea Battle",   airsea,      airsea_size},
+    {"Adventure",        rom_adventure,   rom_adventure_size},
+    {"Adventure 8k",     rom_adventure8k, rom_adventure8k_size},
+    {"Adv. of Tron",     rom_tron,    rom_tron_size},
     {"Asteroids",        asteroids,   asteroids_size},
-    {"California Games", calgames,    calgames_size},
+    {"Bumper Bash",      bumperbash,  bumperbash_size},
     {"Dark Cavern",      darkcavern,  darkcavern_size},
     {"Double Dragon",    doubledragon, doubledragon_size},
-    {"Space Tunnel",     spacetunnel, spacetunnel_size},
-    {"Bumper Bash",      bumperbash,  bumperbash_size},
+    {"Frogger",          rom_frogger,   rom_frogger_size},
+    {"H.E.R.O.",         rom_hero,    rom_hero_size},
+    {"Halo 2600",        halo2600,    halo2600_size},
+    {"Kaboom!",          rom_kaboom,    rom_kaboom_size},
+    {"Keystone Kapers",  rom_keystone,  rom_keystone_size},
+    {"Ms. Pac-Man",      rom_mspacman,  rom_mspacman_size},
+    {"Pitfall!",         rom_pitfall, rom_pitfall_size},
+    {"River Raid",       rom_riverraid, rom_riverraid_size},
+    {"River Raid II",    rom_riverraid2, rom_riverraid2_size},
+    {"Space Invaders",   rom_invaders,  rom_invaders_size},
     {"Video Pinball",    videopinball, videopinball_size},
+    {"Yars' Revenge",    rom_yars,      rom_yars_size},
 };
 #define N_A2600_GAMES (sizeof(a2600_games) / sizeof(a2600_games[0]))
 
@@ -323,6 +340,7 @@ static void run_system(int sys, int game) {
         infones_stop();
     } else {
         /* Atari 2600 */
+        printf("[a2600] init: %s size=%u\n", g->name, (unsigned)g->size);
         atari2600_init(g->rom, g->size);
         uint32_t hold_frames = 0;
         while (true) {
@@ -332,7 +350,7 @@ static void run_system(int sys, int game) {
             atari2600_render();
             /* Выход: Start удержан ~1 сек (по кадрам, надёжно) */
             if (!(pad & 0x08)) hold_frames++; else hold_frames = 0;
-            if (hold_frames > 60) break;
+            if (hold_frames > 60) { printf("[a2600] exit\n"); break; }
         }
     }
 }
@@ -341,6 +359,10 @@ int main(void) {
     vreg_set_voltage(VREG_VOLTAGE_1_20);
     sleep_ms(10);
     set_sys_clock_khz(250000, true);
+
+    stdio_init_all();
+    /* UART debug on GP16 (TX) / GP17 (RX): those are uart0 pins on RP2040. */
+    stdio_uart_init_full(uart0, 115200, 16, 17);
 
     printf("\n=== pico-retro boot ===\n");
     display_init();
