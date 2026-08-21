@@ -84,7 +84,10 @@ static const game_entry_t nes_games[] = {
 #include "rom_pitfall.h"
 #include "rom_riverraid.h"
 #include "rom_riverraid2.h"
-#include "rom_robottank.h"
+#include "rom_sap.h"
+#include "rom_swordq_earth.h"
+#include "rom_swordq_fire.h"
+#include "rom_swordq_water.h"
 #include "rom_invaders.h"
 #include "rom_videopinball.h"
 #include "rom_yars.h"
@@ -106,8 +109,11 @@ static const game_entry_t a2600_games[] = {
     {"Pitfall!",         rom_pitfall, rom_pitfall_size},
     {"River Raid",       rom_riverraid, rom_riverraid_size},
     {"River Raid II",    rom_riverraid2, rom_riverraid2_size},
-    {"Robot Tank",       rom_robottank, rom_robottank_size},
     {"Space Invaders",   rom_invaders,  rom_invaders_size},
+    {"Super Action Pak", rom_sap,    rom_sap_size},
+    {"SwordQuest: Earthworld", rom_swordq_earth, rom_swordq_earth_size},
+    {"SwordQuest: Fireworld",  rom_swordq_fire,  rom_swordq_fire_size},
+    {"SwordQuest: Waterworld", rom_swordq_water, rom_swordq_water_size},
     {"Video Pinball",    rom_videopinball, rom_videopinball_size},
     {"Yars' Revenge",    rom_yars,      rom_yars_size},
 };
