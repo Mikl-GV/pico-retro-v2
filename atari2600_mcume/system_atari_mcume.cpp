@@ -111,6 +111,8 @@ extern "C" void emu_printi(int val) { (void)val; }
 /* ------------------------------------------------------------------ */
 
 static uint16_t atari_rgb565_lut[256];
+static int tv_draw_count = 0;
+static int mcume_ready = 0;
 
 /* The core's create_cmap() (in Display.c) walks the static colortable and
  * calls emu_SetPaletteEntry() for every index — that builds our RGB565 LUT. */
@@ -122,6 +124,7 @@ extern "C" void emu_SetPaletteEntry(unsigned char r, unsigned char g, unsigned c
 extern "C" void emu_DrawScreenPal16(unsigned char *VBuf, int width, int height, int stride)
 {
     (void)stride;
+    tv_draw_count++;
     /* Atari 2600 framebuffer is 160x192. Stretch to fill the whole 256x240
      * display window (like the NES layer) so the picture spans the full
      * width. Atari TIA pixels are not square on real TVs, so the wider
@@ -155,8 +158,6 @@ extern "C" void emu_sndPlayBuzz(int size, int val) { (void)size; (void)val; }
 /* ------------------------------------------------------------------ */
 /* Entry points used by main.cpp                                       */
 /* ------------------------------------------------------------------ */
-
-static int mcume_ready = 0;
 
 extern "C" void atari2600_init(const uint8_t *rom, uint32_t size)
 {
@@ -196,15 +197,23 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size)
     mcume_ready = 1;
 }
 
-/* Run one emulated frame. The core's mainloop runs ~7600 iterations and
- * calls tv_display() at each VSYNC; we just run it and let it draw. */
+/* Run one emulated frame. The core's mainloop() runs a fixed 7600 CPU
+ * iterations, which is less than a full frame (~20000), so a single call
+ * may not reach the VSYNC that triggers tv_display(). Loop mainloop() until
+ * at least one frame has been drawn (with a safety cap so a game that never
+ * generates VSYNC cannot hang the console). */
 extern "C" void atari2600_run_frame(void)
 {
     if (!mcume_ready) return;
     extern void mainloop(void);
     extern void vcs_Input(int key);
-    vcs_Input(0);          /* reads joypad_buttons() into the core state */
-    mainloop();
+    int before = tv_draw_count;
+    int guard = 0;
+    while (tv_draw_count == before && guard < 8) {
+        vcs_Input(0);          /* reads joypad_buttons() into the core state */
+        mainloop();
+        guard++;
+    }
 }
 
 extern "C" void atari2600_poll_joy(void)
