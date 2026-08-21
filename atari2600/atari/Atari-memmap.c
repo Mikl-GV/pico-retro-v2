@@ -73,7 +73,7 @@ void memmap_read(uint8_t *data)
         mos6532_read(address, data);
     }
     if (IS_CART(address)) {
-        /* Некоторые мапперы (F4 и др.) выбирают банк чтением hotspot */
+        /* Банк-селект при чтении и записи hotspot (как в x2600/MCUME) */
         cartridge_bank_select(address, 0);
         cartridge_read(address - MEMMAP_CART_START, data);
     }

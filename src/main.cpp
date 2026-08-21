@@ -72,6 +72,9 @@ static const game_entry_t nes_games[] = {
 #include "rom_airsea.h"
 #include "rom_asteroids.h"
 #include "rom_calgames.h"
+#include "rom_darkcavern.h"
+#include "rom_doubledragon.h"
+#include "rom_spacetunnel.h"
 
 static const game_entry_t a2600_games[] = {
     {"Halo 2600",        halo2600,    halo2600_size},
@@ -80,6 +83,9 @@ static const game_entry_t a2600_games[] = {
     {"Air-Sea Battle",   airsea,      airsea_size},
     {"Asteroids",        asteroids,   asteroids_size},
     {"California Games", calgames,    calgames_size},
+    {"Dark Cavern",      darkcavern,  darkcavern_size},
+    {"Double Dragon",    doubledragon, doubledragon_size},
+    {"Space Tunnel",     spacetunnel, spacetunnel_size},
 };
 #define N_A2600_GAMES (sizeof(a2600_games) / sizeof(a2600_games[0]))
 
@@ -160,9 +166,10 @@ static void draw_about(void) {
     draw_header("ABOUT");
     char buf[40];
     int row = 0;
-    /* Версия и данные прошивки */
     display_text_at_nobg("pico-retro v2.0", 40, 32 + row++ * 11, 1, CURSOR);
-    sprintf(buf, "Games: %d", N_NES_GAMES + N_A2600_GAMES);
+    sprintf(buf, "NES:   %d games", N_NES_GAMES);
+    display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
+    sprintf(buf, "Atari: %d games", N_A2600_GAMES);
     display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
     sprintf(buf, "CPU: %lu MHz", clock_get_hz(clk_sys) / 1000000);
     display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
@@ -175,10 +182,7 @@ static void draw_about(void) {
     uint32_t ram = (uint32_t)&__StackLimit - (uint32_t)&__bss_end__;
     sprintf(buf, "RAM:   %luK / 264K", ram / 1024);
     display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
-    sprintf(buf, "Systems: NES + Atari 2600");
-    display_text_at_nobg(buf, 40, 32 + row++ * 11, 1, WHITE);
     row++;
-    /* Разработчики */
     display_text_at_nobg("Developers:", 40, 32 + row++ * 11, 1, GREEN);
     display_text_at_nobg("Mikl-GV  (hardware/firmware)", 40, 32 + row++ * 11, 1, GREEN);
     display_text_at_nobg("MultiTool (emulation/UI)", 40, 32 + row++ * 11, 1, GREEN);

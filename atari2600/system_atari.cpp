@@ -5,6 +5,7 @@
 
 #include <pico/stdlib.h>
 #include <cstdio>
+#include <cstring>
 
 extern "C" {
 #include "atari/Atari-TIA.h"
@@ -52,15 +53,17 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size) {
     TIA_init();
     cartridge_load_size(rom, size);
     mos6507_reset();
-    /* Сброс состояния кадровой синхронизации при новой игре */
+    /* Сброс состояния кадровой синхронизации и очистка кадра при новой игре */
     atari_line_count = 0;
     atari_vblank = 0;
     atari_vsync = 0;
+    memset(a2600_fb, 0, sizeof(a2600_fb));
 }
 
 /* Run one emulated frame.
- * State (line_count/vblank/vsync) persists between frames like the original,
- * so the frame boundary lands on VSYNC, not at exactly 192 lines. */
+ * Счётчики статические (переживают кадры), но кадр завершается по
+ * накоплению 192 видимых строк — гарантированно не зависает даже если
+ * игра не генерирует VSYNC корректно. */
 extern "C" void atari2600_run_frame(void) {
     int i, clock_count = 0;
 
@@ -74,11 +77,8 @@ extern "C" void atari2600_run_frame(void) {
         }
 
         if (atari_vsync && !TIA_get_VSYNC()) {
-            /* Новый кадр начинается: сброс счётчиков */
             atari_line_count = 0;
             atari_vblank = TIA_VERTICAL_BLANK_LINES;
-            atari_vsync = TIA_get_VSYNC();
-            return;   /* один кадр (от vsync до vsync) отрендерен */
         }
         atari_vsync = TIA_get_VSYNC();
 
@@ -90,6 +90,9 @@ extern "C" void atari2600_run_frame(void) {
         }
 
         if (atari_vblank) atari_vblank--;
+
+        /* Кадр завершён — гарантированный выход (не ждём VSYNC) */
+        if (atari_line_count >= TIA_VERTICAL_PICTURE_LINES) return;
     }
 }
 
@@ -106,22 +109,21 @@ extern "C" void atari2600_render(void) {
     display_stream_end();
 }
 
-/* Buttons -> Atari 2600 joystick (SWCHA) + fire (INPT4) */
+/* Buttons -> Atari 2600 joystick (SWCHA) + fire (INPT4).
+ * Маппинг как в MCUME/x2600 (Keyboard.c):
+ *   Up=D4, Down=D5, Right=D6, Left=D7 (джойстик 1, активный LOW)
+ *   Fire: INPT4=0x00 нажат, 0x80 отпущен */
 extern "C" void atari2600_poll_joy(void) {
     uint8_t pad = joypad_buttons();  /* 0 = pressed */
-    /* SWCHA: D4=Up, D5=Down, D6=Left, D7=Right (joystick 1, active LOW) */
     uint8_t swcha = 0xFF;
-    if (!(pad & 0x10)) swcha &= ~0x10;  /* Up (NES Up -> bit4) */
-    if (!(pad & 0x20)) swcha &= ~0x20;  /* Down */
-    if (!(pad & 0x40)) swcha &= ~0x40;  /* Left */
-    if (!(pad & 0x80)) swcha &= ~0x80;  /* Right */
+    if (!(pad & 0x10)) swcha &= ~0x10;  /* Up   -> D4 */
+    if (!(pad & 0x20)) swcha &= ~0x20;  /* Down -> D5 */
+    if (!(pad & 0x80)) swcha &= ~0x40;  /* Right-> D6 */
+    if (!(pad & 0x40)) swcha &= ~0x80;  /* Left -> D7 */
     mos6532_write(SWCHA, swcha);
-/* Fire: NES A (bit0) -> TIA INPT4 (joystick 1) и INPT5 (joystick 2).
- * TIA_joy1_state(0) = нажата (0x00), (1) = отпущена (0x80). */
-{
-    uint8_t state = (pad & 0x01) ? 1 : 0;
+    /* Fire: A (bit0). Пользователь подтвердил на железе: покой=1 (отпущена),
+     * нажатие=0 (0 только при нажатии). */
+    uint8_t state = (pad & 0x01) ? 0 : 1;
     TIA_joy1_state(state);
-    /* Дублируем на INPT5 для двухпортовых игр (Air-Sea Battle и т.п.) */
     TIA_joy2_state(state);
-}
 }
