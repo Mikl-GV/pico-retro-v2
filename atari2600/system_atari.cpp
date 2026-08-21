@@ -41,6 +41,10 @@ static uint32_t atari_line_count = 0;
 static uint32_t atari_vblank = 0;
 static uint32_t atari_vsync = 0;
 
+/* Переключатель сложности Atari 2600: SWCHB bit6=P1, bit7=P2 (0=amateur,1=expert) */
+static uint8_t atari_diff = 0;
+extern "C" void atari2600_set_difficulty(int p1_expert);
+
 static void atari_init_lut(void) {
     if (atari_lut_ready) return;
     for (int i = 0; i < 256; i++) atari_lut[i] = rgb222_to_565((uint8_t)i);
@@ -58,6 +62,8 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size) {
     atari_vblank = 0;
     atari_vsync = 0;
     memset(a2600_fb, 0, sizeof(a2600_fb));
+    /* Применяем сохранённый переключатель сложности */
+    atari2600_set_difficulty(atari_diff & 1);
 }
 
 /* Run one emulated frame.
@@ -66,8 +72,10 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size) {
  * игра не генерирует VSYNC корректно. */
 extern "C" void atari2600_run_frame(void) {
     int i, clock_count = 0;
+    uint32_t guard = 0;
 
     for (;;) {
+        if (++guard > 3000) return;   /* предохранитель от зависания */
         for (i = 0; i < TIA_COLOUR_CLOCK_TOTAL; i++) {
             clock_count = TIA_clock_tick();
             if (!TIA_get_WSYNC() && !((clock_count + 1) % 3)) {
@@ -126,4 +134,13 @@ extern "C" void atari2600_poll_joy(void) {
     uint8_t state = (pad & 0x01) ? 0 : 1;
     TIA_joy1_state(state);
     TIA_joy2_state(state);
+}
+
+/* Переключатель сложности Atari 2600. */
+extern "C" void atari2600_set_difficulty(int p1_expert) {
+    if (p1_expert) atari_diff |= 1; else atari_diff &= ~1;
+    uint8_t sw = 0x0b;
+    if (atari_diff & 1) sw |= 0x40;   /* P1 expert */
+    if (atari_diff & 2) sw |= 0x80;   /* P2 expert */
+    mos6532_write(SWCHB, sw);
 }

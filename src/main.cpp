@@ -23,6 +23,7 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size);
 extern "C" void atari2600_run_frame(void);
 extern "C" void atari2600_render(void);
 extern "C" void atari2600_poll_joy(void);
+extern "C" void atari2600_set_difficulty(int p1_expert);
 
 #define BG      0x0000
 #define CURSOR  RGB565(31, 31, 0)
@@ -75,6 +76,8 @@ static const game_entry_t nes_games[] = {
 #include "rom_darkcavern.h"
 #include "rom_doubledragon.h"
 #include "rom_spacetunnel.h"
+#include "rom_bumperbash.h"
+#include "rom_videopinball.h"
 
 static const game_entry_t a2600_games[] = {
     {"Halo 2600",        halo2600,    halo2600_size},
@@ -86,6 +89,8 @@ static const game_entry_t a2600_games[] = {
     {"Dark Cavern",      darkcavern,  darkcavern_size},
     {"Double Dragon",    doubledragon, doubledragon_size},
     {"Space Tunnel",     spacetunnel, spacetunnel_size},
+    {"Bumper Bash",      bumperbash,  bumperbash_size},
+    {"Video Pinball",    videopinball, videopinball_size},
 };
 #define N_A2600_GAMES (sizeof(a2600_games) / sizeof(a2600_games[0]))
 
@@ -233,20 +238,49 @@ static void run_pad_test(void) {
     }
 }
 
-/* Меню настроек: пункт "Проверка джойстика" */
+/* Подменю сложности Atari 2600: P1 Novice/Expert */
+static int atari_p1_expert = 0;
+static void run_atari_diff(void) {
+    uint32_t prev = 0;
+    uint8_t p0 = joypad_buttons();
+    uint8_t d0 = ~p0;
+    prev = (((uint32_t)d0 >> 4) & 1) | (((uint32_t)(d0 >> 5) & 1) << 1)
+         | (((uint32_t)(d0 >> 3) & 1) << 2);
+    while (true) {
+        display_fill(BG);
+        draw_header("ATARI DIFF");
+        display_text_at_nobg("P1 Difficulty:", 40, 32, 1, WHITE);
+        display_text_at_nobg(atari_p1_expert ? "Expert" : "Novice", 40, 44, 1,
+                             atari_p1_expert ? CURSOR : WHITE);
+        draw_footer_msg("UP/DN  START  B=back");
+        display_flush();
+        uint8_t p = joypad_buttons();
+        uint8_t d = ~p;
+        uint32_t m = (((uint32_t)d >> 4) & 1) | (((uint32_t)(d >> 5) & 1) << 1)
+                   | (((uint32_t)(d >> 3) & 1) << 2);
+        uint32_t e = m & ~prev;
+        if (e & 1) { atari_p1_expert = !atari_p1_expert; atari2600_set_difficulty(atari_p1_expert); }
+        if (e & 2) { atari_p1_expert = !atari_p1_expert; atari2600_set_difficulty(atari_p1_expert); }
+        if (e & 4 || !(p & 0x02)) { sleep_ms(100); break; }
+        prev = m;
+        sleep_ms(20);
+    }
+}
+
+/* Меню настроек: Pad Test + Atari Difficulty */
 static void draw_settings(int cursor) {
     display_fill(BG);
     draw_header("SETTINGS");
-    /* Пункт меню ниже названия (название y=23..30, пункт с y=32) */
     display_text_at_nobg(">", 40, 32, 1, cursor == 0 ? CURSOR : WHITE);
     display_text_at_nobg("Pad Test", 48, 32, 1, cursor == 0 ? CURSOR : WHITE);
+    display_text_at_nobg(">", 40, 43, 1, cursor == 1 ? CURSOR : WHITE);
+    display_text_at_nobg("Atari Diff", 48, 43, 1, cursor == 1 ? CURSOR : WHITE);
     draw_footer_msg("UP/DN  START  B=back");
     display_flush();
 }
 
 static void run_settings(void) {
     int sel = 0;
-    /* Сбрасываем состояние: зажатая при входе кнопка не даст edge в подменю */
     uint32_t prev = 0;
     uint8_t p0 = joypad_buttons();
     uint8_t d0 = ~p0;
@@ -261,8 +295,8 @@ static void run_settings(void) {
         uint32_t e = m & ~prev;
         if (e & 1) { sel = (sel + 1) % 2; draw_settings(sel); }
         if (e & 2) { sel = (sel + 1) % 2; draw_settings(sel); }
-        if (e & 4) { if (sel == 0) run_pad_test(); draw_settings(sel); }  /* Start — вход */
-        if (!(p & 0x02)) { sleep_ms(100); break; }  /* B — назад */
+        if (e & 4) { if (sel == 0) run_pad_test(); else run_atari_diff(); draw_settings(sel); }
+        if (!(p & 0x02)) { sleep_ms(100); break; }
         prev = m;
         sleep_ms(20);
     }
