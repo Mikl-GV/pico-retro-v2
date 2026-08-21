@@ -111,8 +111,6 @@ extern "C" void emu_printi(int val) { (void)val; }
 /* ------------------------------------------------------------------ */
 
 static uint16_t atari_rgb565_lut[256];
-static int tv_draw_count = 0;
-static int mcume_ready = 0;
 
 /* The core's create_cmap() (in Display.c) walks the static colortable and
  * calls emu_SetPaletteEntry() for every index — that builds our RGB565 LUT. */
@@ -124,15 +122,16 @@ extern "C" void emu_SetPaletteEntry(unsigned char r, unsigned char g, unsigned c
 extern "C" void emu_DrawScreenPal16(unsigned char *VBuf, int width, int height, int stride)
 {
     (void)stride;
-    tv_draw_count++;
-    /* Atari 2600 TIA pixels are NOT square: 160 points span the full 4:3
-     * screen width, so each point is ~1.6x wider than tall. To show correct
-     * geometry stretch the 160x192 buffer horizontally to 256 wide, keep
-     * 192 tall (matching the 256px NES window). */
-    const int SW = 160, SH = 192;   /* source 160x192 */
-    const int W = 256, H = 192;     /* dest 256x192 (square pixels) */
-    int x0 = 32;                    /* left edge of the 256px window */
-    int y0 = (240 - H) / 2;         /* 24 - vertical centre */
+    (void)width;
+    (void)height;
+    /* Atari 2600 TIA pixels are not square: 160 points span the full 4:3
+     * width, so each point is ~1.6x wider than tall. Stretch horizontally
+     * to 256 (matching the NES window width), keep the native 192 rows so
+     * characters/bottles/text have correct proportions. */
+    const int SW = 160, SH = 192;
+    const int W = 256, H = 192;
+    int x0 = 32;                /* left edge of the 256px window */
+    int y0 = (240 - H) / 2;     /* 24 - vertical centre */
     static uint8_t line[256];
 
     display_stream_begin(x0, y0, W, H);
@@ -158,6 +157,8 @@ extern "C" void emu_sndPlayBuzz(int size, int val) { (void)size; (void)val; }
 /* ------------------------------------------------------------------ */
 /* Entry points used by main.cpp                                       */
 /* ------------------------------------------------------------------ */
+
+static int mcume_ready = 0;
 
 extern "C" void atari2600_init(const uint8_t *rom, uint32_t size)
 {
@@ -197,23 +198,15 @@ extern "C" void atari2600_init(const uint8_t *rom, uint32_t size)
     mcume_ready = 1;
 }
 
-/* Run one emulated frame. The core's mainloop() runs a fixed 7600 CPU
- * iterations, which is less than a full frame (~20000), so a single call
- * may not reach the VSYNC that triggers tv_display(). Loop mainloop() until
- * at least one frame has been drawn (with a safety cap so a game that never
- * generates VSYNC cannot hang the console). */
+/* Run one emulated frame. The core's mainloop runs ~7600 iterations and
+ * calls tv_display() at each VSYNC; we just run it and let it draw. */
 extern "C" void atari2600_run_frame(void)
 {
     if (!mcume_ready) return;
     extern void mainloop(void);
     extern void vcs_Input(int key);
-    int before = tv_draw_count;
-    int guard = 0;
-    while (tv_draw_count == before && guard < 8) {
-        vcs_Input(0);          /* reads joypad_buttons() into the core state */
-        mainloop();
-        guard++;
-    }
+    vcs_Input(0);          /* reads joypad_buttons() into the core state */
+    mainloop();
 }
 
 extern "C" void atari2600_poll_joy(void)
