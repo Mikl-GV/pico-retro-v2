@@ -122,14 +122,15 @@ extern "C" void emu_SetPaletteEntry(unsigned char r, unsigned char g, unsigned c
 extern "C" void emu_DrawScreenPal16(unsigned char *VBuf, int width, int height, int stride)
 {
     (void)stride;
-    /* Atari 2600 framebuffer is 160x192 (4:3). Scale up to 200x240
-     * (factor 1.25, nearest neighbour) preserving the 4:3 aspect ratio and
-     * filling the whole height of the 256x240 display window. */
+    /* Atari 2600 framebuffer is 160x192. Stretch to fill the whole 256x240
+     * display window (like the NES layer) so the picture spans the full
+     * width. Atari TIA pixels are not square on real TVs, so the wider
+     * aspect (256x240) is the authentic look. */
     const int SW = 160, SH = 192;   /* source */
-    const int DW = 200, DH = 240;   /* dest */
-    int x0 = 32 + (256 - DW) / 2;   /* 60 */
+    const int DW = 256, DH = 240;   /* dest */
+    int x0 = 32;                    /* left edge of the 256px window */
     int y0 = 0;
-    static uint8_t line[200];
+    static uint8_t line[256];
 
     display_stream_begin(x0, y0, DW, DH);
     for (int dy = 0; dy < DH; dy++) {
